@@ -11,7 +11,7 @@ environment baseline before Phase 1 begins.
 
 - WSL: `~/projects/midnight-xrpl-gateway`  (Windows UNC: `\\wsl.localhost\Ubuntu\home\denni\projects\midnight-xrpl-gateway`)
 - Branch: `master`
-- **Not pushed** anywhere (local only, per handoff "do not push unless Dennis asks").
+- **Remote (private):** `https://github.com/DpacJones/midnight-xrpl-gateway.git` — pushed at Dennis's explicit request on 2026-06-24 so Codex can clone for audit. Still no deploy/merge.
 
 ## 2. Commit list by phase
 

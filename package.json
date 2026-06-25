@@ -1,0 +1,13 @@
+{
+  "name": "midnight-xrpl-gateway",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Midnight XRPL Private Credential Gateway — standalone testnet reference dApp",
+  "scripts": {
+    "spike": "node scripts/spike-credentials.mjs"
+  },
+  "dependencies": {
+    "xrpl": "4.6.0"
+  }
+}

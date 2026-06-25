@@ -20,6 +20,26 @@ export const DOMAIN = {
 
 export type DomainName = keyof typeof DOMAIN;
 
+/**
+ * Canonical Bytes<32> form of each domain separator and the v1 policy id, precomputed as
+ *   tag32 = SHA-256(utf8(string))
+ * Precomputed (not hashed at runtime) so the encoder is dependency-free and universal, and
+ * so the Phase 2 Compact contract can embed the IDENTICAL 32-byte literals. The derivation
+ * is documented here purely so it is auditable/reproducible — it is never recomputed live.
+ *
+ * To verify:  printf '%s' '<string>' | sha256sum
+ */
+export const DOMAIN_TAG32_HEX: Record<DomainName, string> = {
+  HOLDER: "4b3352e8f86283a50bcf3fdcbb8556d0ca242155b10cbac62e334c08154051be",
+  CREDENTIAL_LEAF: "d7a66fb47b42e9f1c43d93e9f5601dc5b1b5b8b11e535ab9c9d3eaa536a643e5",
+  REQUEST: "0b8e975d0ba5286480f81f5dbac55a74b98ee912a9a7c9ef25c5abc2c8dbec7b",
+  NULLIFIER: "cbe1f84fc626fca5a7a13fbf38f47bd95ff03e8a7d3fae9aaadd9749611a86cb",
+  ADMIN: "8c3257337ed62ac89d65740ce44311275ee04a97ead5e39eba8e4f44005c6ee2",
+};
+
+/** SHA-256(utf8(POLICY_V1.policyId)) as the public 32-byte policy identifier. */
+export const POLICY_ID32_HEX = "89737c9bb3fff00a49072d5125e20935140b40937dc69c94063c1fac137ea751";
+
 /** Fixed byte lengths. Explicit everywhere — no implicit widening. */
 export const BYTE_LENGTHS = {
   /** Raw XRPL AccountID (the 160-bit account identifier). */

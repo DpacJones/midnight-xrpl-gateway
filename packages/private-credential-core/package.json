@@ -13,6 +13,7 @@
     "test": "node --test"
   },
   "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
     "xrpl": "4.6.0"
   }
 }

@@ -46,8 +46,3 @@ export function bytes32ToXrplAddress(bytes32: Uint8Array): string {
   const accountId = bytes32.slice(PAD); // low 20 bytes
   return encodeAccountID(Buffer.from(accountId));
 }
-
-/** Lowercase hex of a byte array (helper for vectors/logging). */
-export function toHex(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString("hex");
-}

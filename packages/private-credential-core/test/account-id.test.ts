@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { xrplAddressToBytes32, bytes32ToXrplAddress, toHex } from "../src/account-id.ts";
+import { xrplAddressToBytes32, bytes32ToXrplAddress } from "../src/account-id.ts";
+import { toHex } from "../src/bytes.ts";
 
 const vectorsPath = fileURLToPath(new URL("./vectors/account-id.json", import.meta.url));
 const { vectors } = JSON.parse(readFileSync(vectorsPath, "utf8")) as {

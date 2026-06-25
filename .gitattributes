@@ -1,0 +1,12 @@
+# Cross-platform repo: source lives in WSL (LF), but Windows git checkouts and
+# Windows-side commits were converting tracked files to CRLF. Force LF everywhere,
+# in the index and in every working tree, regardless of core.autocrlf.
+* text=auto eol=lf
+
+# Belt-and-suspenders for the file types we actually ship.
+*.mjs   text eol=lf
+*.js    text eol=lf
+*.ts    text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.compact text eol=lf

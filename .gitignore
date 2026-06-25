@@ -5,3 +5,8 @@ node_modules/
 *.secret
 spike-artifact.json
 dist/
+
+# mock issuer / demo outputs (contain synthetic secrets + private bundles)
+demo-out/
+holder-secret.json
+credential-bundle.json

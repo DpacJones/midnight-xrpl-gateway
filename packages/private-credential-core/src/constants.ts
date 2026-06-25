@@ -16,6 +16,7 @@ export const DOMAIN = {
   REQUEST: "atlantis:mxrpl:request:v1",
   NULLIFIER: "atlantis:mxrpl:nullifier:v1",
   ADMIN: "atlantis:mxrpl:admin:v1",
+  MERKLE_NODE: "atlantis:mxrpl:merkle-node:v1",
 } as const;
 
 export type DomainName = keyof typeof DOMAIN;
@@ -35,7 +36,11 @@ export const DOMAIN_TAG32_HEX: Record<DomainName, string> = {
   REQUEST: "0b8e975d0ba5286480f81f5dbac55a74b98ee912a9a7c9ef25c5abc2c8dbec7b",
   NULLIFIER: "cbe1f84fc626fca5a7a13fbf38f47bd95ff03e8a7d3fae9aaadd9749611a86cb",
   ADMIN: "8c3257337ed62ac89d65740ce44311275ee04a97ead5e39eba8e4f44005c6ee2",
+  MERKLE_NODE: "6a2b695e150f20844e3539c9a39e31b280cb7a3331cf9f37fc3d8590cbb37b0f",
 };
+
+/** Fixed Merkle tree height (capacity 2^MERKLE_DEPTH leaves). The Phase 2 circuit uses the same. */
+export const MERKLE_DEPTH = 16;
 
 /** SHA-256(utf8(POLICY_V1.policyId)) as the public 32-byte policy identifier. */
 export const POLICY_ID32_HEX = "89737c9bb3fff00a49072d5125e20935140b40937dc69c94063c1fac137ea751";

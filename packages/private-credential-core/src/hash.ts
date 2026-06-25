@@ -30,6 +30,7 @@ export const TAG32: Record<DomainName, Uint8Array> = Object.freeze({
   REQUEST: fromHex(DOMAIN_TAG32_HEX.REQUEST),
   NULLIFIER: fromHex(DOMAIN_TAG32_HEX.NULLIFIER),
   ADMIN: fromHex(DOMAIN_TAG32_HEX.ADMIN),
+  MERKLE_NODE: fromHex(DOMAIN_TAG32_HEX.MERKLE_NODE),
 });
 
 /** Public 32-byte policy identifier. */

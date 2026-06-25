@@ -48,6 +48,23 @@ Implemented in `packages/private-credential-core`; golden vectors in
   - request_commitment: `[REQUEST, account_id_32, request_nonce, policy_id_32, u(policy_epoch)]`
   - nullifier: `[NULLIFIER, holder_secret, policy_id_32, credential_id]`
 
+## D4 — Merkle layer (PROPOSED; Codex ruling requested before Phase 2 locks the circuit)
+Implemented in `src/merkle.ts`; the circuit must fold paths identically.
+
+- **Custom fixed-depth binary Merkle tree, NOT the stdlib `MerkleTree` ADT.** Depth `MERKLE_DEPTH = 16`
+  (capacity 65 536). Node hash `H_node(l,r) = persistentHash([MERKLE_NODE_tag, l, r])`; empty leaf = 32 zero
+  bytes; empty subtree roots precomputed per level. Path entry `goesLeft=true` ⇒ current node is the left child
+  ⇒ parent `H_node(cur, sibling)`, else `H_node(sibling, cur)`.
+- **Why custom:** our design builds the tree **off-chain** at the issuer and publishes only the root (Mission
+  §9.3); the circuit verifies membership against that published root. A custom persistentHash fold keeps TS and
+  Compact identical **by construction** and avoids the runtime `StateBoundedMerkleTree` ↔ `AlignedValue` plumbing
+  (which no example project exercises off-chain and which can't be cross-validated until the contract exists).
+- **Tradeoff / open question for Codex:** `persistentHash` is explicitly *not* circuit-cost-optimised, so a
+  depth-16 proof costs ~16 persistentHash gadgets. The stdlib `MerkleTree`/`merkleTreePathRoot` uses
+  field/transient hashing (cheaper) but requires the AlignedValue path-extraction. **If Codex prefers the stdlib
+  ADT for cost, that is a contained Phase 2 swap** (the off-chain tree + bundle interface stay the same).
+- Leaves are the §8.4 credential leaves (already `persistentCommit` outputs); the tree does not re-hash leaves.
+
 ## Audit status
 Codex has **not** yet audited commits `ad12259..8d0910e` (its environment had no WSL / no mounted copy). The repo
 is now pushed to a private remote for that audit — see `HANDOFF_PHASE0_CODEX.md`.

@@ -4,3 +4,5 @@ export * from "./bytes.ts";
 export * from "./account-id.ts";
 export * from "./hash.ts";
 export * from "./credential.ts";
+export * from "./merkle.ts";
+export * from "./bundle.ts";

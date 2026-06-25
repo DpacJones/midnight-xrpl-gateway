@@ -25,7 +25,20 @@ it with twelve `0x00` bytes → `00·00·…(12)…·<20-byte AccountID>`.
 - Vector set must include: a known address ↔ its 20-byte AccountID ↔ its left-padded `Bytes<32>`, plus
   invalid-length inputs that must throw.
 
-## D3 — Hashing/encoding contract (Phase 1 lock; Phase 2 circuit must match)
+## D3 — CORRECTION PENDING (Phase 2 grounding, 2026-06-25)
+Reading the proven Compact pattern (`NftZk.compact` + its generated bindings) shows the Phase 1 encoding guesses
+below do **not** match how Compact actually hashes. Correcting before the circuit locks:
+- **Domain tags:** Compact uses `pad(32, "short-string")` = UTF-8 **right-zero-padded** to 32 bytes, NOT
+  `sha256(utf8)`. ⇒ shorten the two >32-byte tags (`credential-leaf`, `policy-id`) and switch TS to `pad32`.
+- **Integers:** Compact hashes **native-typed heterogeneous tuples** (`persistentHash<[Bytes<32>, …, Uint<16>]>`
+  via a compiler-generated tuple `CompactType` using `CompactTypeUnsignedInteger(max, byteLen)`), NOT hand-rolled
+  big-endian `Bytes<32>`. ⇒ TS mirrors the same tuple types (or calls the compiled `pureCircuits.*`, which are
+  callable from TS and become the single source of truth for the golden vectors).
+- **Impact:** `hash.ts`/`credential.ts` tag + field encoding and `test/vectors/credential.json` get regenerated.
+  `account-id.ts` (D2), `merkle.ts` structure (D4), and `bundle.ts` are unaffected in shape (merkle node hashing
+  re-derives once tags change). No architectural change — just aligning to Compact's real encoding.
+
+## D3 (original guesses — SUPERSEDED by the correction above)
 Implemented in `packages/private-credential-core`; golden vectors in
 `test/vectors/credential.json`. The Compact circuit must reproduce every `expected` hex.
 
@@ -48,7 +61,14 @@ Implemented in `packages/private-credential-core`; golden vectors in
   - request_commitment: `[REQUEST, account_id_32, request_nonce, policy_id_32, u(policy_epoch)]`
   - nullifier: `[NULLIFIER, holder_secret, policy_id_32, credential_id]`
 
-## D4 — Merkle layer (PROPOSED; Codex ruling requested before Phase 2 locks the circuit)
+## D4 — Merkle layer (ACCEPTED by Codex 2026-06-25 — proceed as implemented)
+**Ruling:** proceed with the custom fixed-depth persistentHash Merkle tree; do not hold Phase 2. Rationale: the
+published root is an upgrade-stable `Bytes<32>` (persistentHash is upgrade-stable; transient/field Merkle hashing
+is **not** — per the Midnight stdlib docs); the custom impl + vectors already match the off-chain issuer model;
+16 hashes are bounded. **Phase 2 MUST record circuit constraint count + proving time; revisit D4 only if those
+measurements are unacceptable** (optimize on measurement, not speculation).
+
+(original proposal:)
 Implemented in `src/merkle.ts`; the circuit must fold paths identically.
 
 - **Custom fixed-depth binary Merkle tree, NOT the stdlib `MerkleTree` ADT.** Depth `MERKLE_DEPTH = 16`

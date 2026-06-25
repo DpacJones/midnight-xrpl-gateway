@@ -1,0 +1,29 @@
+{
+  "_comment": "Fixed vectors for the canonical XRPL AccountID <-> Bytes<32> encoding (ruling D2: left-pad 20-byte AccountID with 12 zero bytes). accountIdHex is xrpl.decodeAccountID output; bytes32Hex is the canonical wide form. These must match the Compact circuit's account encoding in Phase 2.",
+  "vectors": [
+    {
+      "name": "spike-issuer",
+      "address": "r42p6zuudgYSVHHqK3rgaHmmhwoVMqPLDd",
+      "accountIdHex": "ec99cb037ea47ae11e006b44aa74c8c3490cda74",
+      "bytes32Hex": "000000000000000000000000ec99cb037ea47ae11e006b44aa74c8c3490cda74"
+    },
+    {
+      "name": "spike-user",
+      "address": "rL6R6fce1bfTxgj1S7mxQ2f4EBonv6wbyB",
+      "accountIdHex": "d80fa3cfe52e6d0f5b86e861904ba6e792887d46",
+      "bytes32Hex": "000000000000000000000000d80fa3cfe52e6d0f5b86e861904ba6e792887d46"
+    },
+    {
+      "name": "spike-authorizer",
+      "address": "rUxTg1hxQvHMy9higXUEL2LWeNtz3PgGvw",
+      "accountIdHex": "832689f8e1c0a8b629f27f65cb46e1fa9f16ba3a",
+      "bytes32Hex": "000000000000000000000000832689f8e1c0a8b629f27f65cb46e1fa9f16ba3a"
+    },
+    {
+      "name": "account-zero (boundary)",
+      "address": "rrrrrrrrrrrrrrrrrrrrrhoLvTp",
+      "accountIdHex": "0000000000000000000000000000000000000000",
+      "bytes32Hex": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}

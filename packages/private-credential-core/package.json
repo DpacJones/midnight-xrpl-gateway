@@ -1,0 +1,18 @@
+{
+  "name": "@mxrpl/private-credential-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reusable private-credential primitives (encoders, commitments, Merkle, nullifier) shared by browser, tests, and gateway. Future ProofPass core.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./account-id": "./src/account-id.ts",
+    "./constants": "./src/constants.ts"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "xrpl": "4.6.0"
+  }
+}

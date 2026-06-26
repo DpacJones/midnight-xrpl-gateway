@@ -27,6 +27,22 @@ export interface Gateway {
 export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gateway {
   const config = assertSafeConfig(rawConfig); // hard mainnet guard at construction
 
+  // Per-idempotency-key critical section (single-process). Serializes check-and-issue so two
+  // concurrent duplicate requests can't both observe "no record" and both issue. NOTE: this is
+  // IN-PROCESS only — running multiple gateway processes against the same store requires a real
+  // atomic claim (DB unique constraint / lock); see README.
+  const keyChain = new Map<string, Promise<unknown>>();
+  function withKeyLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const prev = keyChain.get(key) ?? Promise.resolve();
+    const run = prev.then(fn, fn); // run after the previous holder settles (success or failure)
+    const tail = run.catch(() => {});
+    keyChain.set(key, tail);
+    tail.then(() => {
+      if (keyChain.get(key) === tail) keyChain.delete(key); // drain to avoid unbounded growth
+    });
+    return run;
+  }
+
   async function issueCredential(req: CredentialIssueRequest): Promise<IssueRecord> {
     // 1. strict format/length validation
     assertHex32(req.requestCommitment, "requestCommitment");
@@ -34,6 +50,7 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
     assertHex32(req.policyId, "policyId");
     if (!Number.isInteger(req.policyEpoch) || req.policyEpoch < 0 || req.policyEpoch > 0xffff) throw new GatewayError("validation:bad-epoch", "policyEpoch must fit Uint<16>");
     if (typeof req.signedChallengeBlob !== "string" || req.signedChallengeBlob.length === 0) throw new GatewayError("validation:no-blob", "missing signedChallengeBlob");
+    if (typeof req.midnightTransactionId !== "string" || req.midnightTransactionId.length === 0) throw new GatewayError("validation:no-txid", "missing midnightTransactionId");
     let accountId32: Uint8Array;
     try {
       accountId32 = xrplAddressToBytes32(req.xrplAccount); // step 4 (also validates the address)
@@ -67,27 +84,31 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
     });
     if (!approved) throw new GatewayError("receipt:missing", "no confirmed Midnight eligibility receipt for this commitment");
 
-    // 10. durable idempotency
+    // 10-16. critical section per idempotency key — the check-and-issue runs atomically so two
+    //        concurrent duplicate requests cannot both issue.
     const key = idempotencyKey(config.xrpl.network, req.policyId, req.requestCommitment);
-    const existing = await deps.store.get(key);
-    if (existing) return { ...existing, status: "idempotent" };
+    return withKeyLock(key, async () => {
+      // 10. durable idempotency
+      const existing = await deps.store.get(key);
+      if (existing) return { ...existing, status: "idempotent" };
 
-    // 11. if the XRPL credential already exists, return it deterministically (no second issue)
-    const already = await deps.issuer.existingCredentialId({ subject: req.xrplAccount, credentialTypeHex: config.xrpl.credentialTypeHex });
-    if (already) {
-      const rec: IssueRecord = { status: "exists", xrplAccount: req.xrplAccount, requestCommitment: req.requestCommitment.toLowerCase(), credentialType: config.xrpl.credentialTypeHex, credentialId: already };
+      // 11. if the XRPL credential already exists, return it deterministically (no second issue)
+      const already = await deps.issuer.existingCredentialId({ subject: req.xrplAccount, credentialTypeHex: config.xrpl.credentialTypeHex });
+      if (already) {
+        const rec: IssueRecord = { status: "exists", xrplAccount: req.xrplAccount, requestCommitment: req.requestCommitment.toLowerCase(), credentialType: config.xrpl.credentialTypeHex, credentialId: already };
+        await deps.store.put(key, rec);
+        return rec;
+      }
+
+      // 12-15. issue exactly one fixed CredentialCreate (built + signed inside the issuer). A failure
+      //         here throws BEFORE any record is persisted, so the request is not marked complete.
+      const { hash, credentialId } = await deps.issuer.issueCredential({ subject: req.xrplAccount, requestCommitmentHex: req.requestCommitment.toLowerCase() });
+
+      // 16. persist the validated result + return
+      const rec: IssueRecord = { status: "issued", xrplAccount: req.xrplAccount, requestCommitment: req.requestCommitment.toLowerCase(), credentialType: config.xrpl.credentialTypeHex, credentialId, createHash: hash };
       await deps.store.put(key, rec);
       return rec;
-    }
-
-    // 12-15. issue exactly one fixed CredentialCreate (built + signed inside the issuer). A failure
-    //         here throws BEFORE any record is persisted, so the request is not marked complete.
-    const { hash, credentialId } = await deps.issuer.issueCredential({ subject: req.xrplAccount, requestCommitmentHex: req.requestCommitment.toLowerCase() });
-
-    // 16. persist the validated result + return
-    const rec: IssueRecord = { status: "issued", xrplAccount: req.xrplAccount, requestCommitment: req.requestCommitment.toLowerCase(), credentialType: config.xrpl.credentialTypeHex, credentialId, createHash: hash };
-    await deps.store.put(key, rec);
-    return rec;
+    });
   }
 
   return { issueCredential };

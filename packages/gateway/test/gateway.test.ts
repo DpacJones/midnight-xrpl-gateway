@@ -31,7 +31,7 @@ function config(over: Partial<GatewayConfig["xrpl"]> = {}): GatewayConfig {
 function mockMidnight(approved: Set<string>): MidnightReceiptProvider {
   return { isApprovedRequest: async ({ requestCommitmentHex }) => approved.has(requestCommitmentHex) };
 }
-function mockIssuer(opts: { existing?: string; fail?: boolean } = {}) {
+function mockIssuer(opts: { existing?: string; fail?: boolean; delayMs?: number } = {}) {
   const calls = { issue: 0, existing: 0 };
   const issuer: XrplCredentialIssuer = {
     existingCredentialId: async () => {
@@ -40,6 +40,7 @@ function mockIssuer(opts: { existing?: string; fail?: boolean } = {}) {
     },
     issueCredential: async () => {
       calls.issue++;
+      if (opts.delayMs) await new Promise((r) => setTimeout(r, opts.delayMs));
       if (opts.fail) throw new Error("xrpl submit failed");
       return { hash: "TXHASH", credentialId: "CREDID" };
     },
@@ -128,6 +129,17 @@ test("duplicate request is idempotent (issues once)", async () => {
   assert.equal(b.status, "idempotent");
   assert.equal(b.credentialId, "CREDID");
   assert.equal(issuer.calls.issue, 1); // not re-issued
+});
+
+test("concurrent duplicate requests issue only once (per-key critical section)", async () => {
+  const { req, commitmentHex } = validRequest();
+  const issuer = mockIssuer({ delayMs: 50 }); // first issue is still in-flight when the second starts
+  const { g } = gw({ approved: new Set([commitmentHex]), issuer });
+  const [a, b] = await Promise.all([g.issueCredential(req), g.issueCredential(req)]);
+  assert.equal(issuer.calls.issue, 1); // only ONE submit despite the race
+  assert.deepEqual([a.status, b.status].sort(), ["idempotent", "issued"]);
+  assert.equal(a.credentialId, "CREDID");
+  assert.equal(b.credentialId, "CREDID");
 });
 
 test("existing XRPL credential is handled deterministically (no second issue)", async () => {

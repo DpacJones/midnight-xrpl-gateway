@@ -29,7 +29,10 @@ not mark the request complete, so a retry can proceed.
 - `MidnightReceiptProvider` — reads validated `approvedRequests` (the indexer in production; mock in tests).
 - `XrplCredentialIssuer` — `createXrplCredentialIssuer(config, seed)` is the real impl (build/sign/submit
   to testnet, resolve the credential id); §17.4 unit tests use a mock.
-- `IdempotencyStore` — `InMemoryIdempotencyStore` / `FileIdempotencyStore` (atomic file writes).
+- `IdempotencyStore` — `InMemoryIdempotencyStore` / `FileIdempotencyStore` (atomic file writes). Concurrent
+  duplicates are serialized by an **in-process per-key critical section** (only one credential is ever issued;
+  tested with a racing-duplicate). ⚠️ **Single-process scope** — multiple gateway processes against one store need a
+  real atomic claim (DB unique constraint / advisory lock); run a single process or swap the store before scaling out.
 
 ## Tests
 `node --test` — 11 §17.4 cases (mocked boundaries): happy path, missing/wrong-contract/wrong-policy/

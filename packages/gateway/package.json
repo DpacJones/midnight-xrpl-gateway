@@ -1,0 +1,18 @@
+{
+  "name": "@mxrpl/gateway",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Scoped credential gateway: verify Midnight receipt + XRPL challenge, issue exactly one fixed CredentialCreate.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@mxrpl/private-credential-core": "*",
+    "@mxrpl/xrpl-client": "*",
+    "xrpl": "4.6.0"
+  }
+}

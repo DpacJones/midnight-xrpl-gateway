@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { toHex, fromHex } from "../src/bytes.ts";
 import { xrplAddressToBytes32 } from "../src/account-id.ts";
-import { TAG32, POLICY_ID32, hashVec } from "../src/hash.ts";
+import { TAG, POLICY_ID32, hashVec } from "../src/hash.ts";
 import { deriveHolderKey, credentialLeaf, requestCommitment, nullifier, jurisdictionToUint, type PrivateCredential } from "../src/credential.ts";
 
 const v = JSON.parse(readFileSync(fileURLToPath(new URL("./vectors/credential.json", import.meta.url)), "utf8")) as {
@@ -48,7 +48,7 @@ test("derivations are deterministic", () => {
 
 test("domain separation: same bytes under different tags differ", () => {
   // holder_key = H(HOLDER, secret); a NULLIFIER-tagged hash of the same secret must differ.
-  assert.notEqual(toHex(deriveHolderKey(holderSecret)), toHex(hashVec([TAG32.NULLIFIER, holderSecret])));
+  assert.notEqual(toHex(deriveHolderKey(holderSecret)), toHex(hashVec([TAG.NULLIFIER, holderSecret])));
 });
 
 test("account binding: request commitment changes with the XRPL account", () => {
@@ -78,6 +78,16 @@ test("jurisdictionToUint: encoding + validation", () => {
   assert.throws(() => jurisdictionToUint("ca"), /2 uppercase letters/);
   assert.throws(() => jurisdictionToUint("USA"), /2 uppercase letters/);
   assert.throws(() => jurisdictionToUint("C1"), /2 uppercase letters/);
+});
+
+test("integer field range validation (Uint<N> bounds)", () => {
+  assert.throws(() => credentialLeaf(makeCred({ schemaVersion: 256 })), /Uint<8>/); // > 255
+  assert.throws(() => credentialLeaf(makeCred({ birthYear: 65536 })), /Uint<16>/); // > 65535
+  assert.throws(() => credentialLeaf(makeCred({ validUntilPolicyEpoch: -1 })), /non-negative/);
+  assert.throws(() => credentialLeaf(makeCred({ birthYear: 2000.5 })), /integer/);
+  assert.throws(() => requestCommitment({ xrplAccountId32: accountId32, requestNonce, policyEpoch: 70000 }), /Uint<16>/);
+  // boundary values are accepted
+  assert.ok(credentialLeaf(makeCred({ schemaVersion: 255, birthYear: 65535, validUntilPolicyEpoch: 0 })) instanceof Uint8Array);
 });
 
 test("length validation on every entry point", () => {

@@ -27,24 +27,6 @@ export function assertLen(bytes: Uint8Array, len = BYTE_LENGTHS.BYTES32, label =
   return bytes;
 }
 
-/**
- * Canonical fixed-width encoding of a non-negative integer to Bytes<32>, big-endian.
- * This is THE integer encoding rule the Compact circuit must mirror (explicit endianness,
- * fixed length). Throws on negative or >= 2^256.
- */
-export function uintToBytes32(value: bigint | number): Uint8Array {
-  let v = typeof value === "number" ? BigInt(value) : value;
-  if (typeof value === "number" && !Number.isInteger(value)) throw new Error(`uintToBytes32: ${value} is not an integer`);
-  if (v < 0n) throw new Error(`uintToBytes32: value must be non-negative, got ${v}`);
-  if (v >= 1n << 256n) throw new Error(`uintToBytes32: value must be < 2^256`);
-  const out = new Uint8Array(32);
-  for (let i = 31; i >= 0; i--) {
-    out[i] = Number(v & 0xffn);
-    v >>= 8n;
-  }
-  return out;
-}
-
 /** Cryptographically secure 32-byte value (holder secret, credential id, nonce, randomness). */
 export function randomBytes32(): Uint8Array {
   return globalThis.crypto.getRandomValues(new Uint8Array(BYTE_LENGTHS.SECRET));

@@ -12,10 +12,10 @@ construction. See `../../docs/PROTOCOL_DECISIONS.md` for the governing rulings (
 
 | Module | Exports |
 |---|---|
-| `constants.ts` | `DOMAIN`, `DOMAIN_TAG32_HEX`, `POLICY_ID32_HEX`, `BYTE_LENGTHS`, `POLICY_V1`, `MERKLE_DEPTH` |
-| `bytes.ts` | `toHex`, `fromHex`, `uintToBytes32` (big-endian), `randomBytes32`, `assertLen` |
+| `constants.ts` | `DOMAIN` (pad-32 tags), `BYTE_LENGTHS`, `FIELD_BITS`, `POLICY_V1`, `MERKLE_DEPTH` |
+| `bytes.ts` | `toHex`, `fromHex`, `randomBytes32`, `assertLen` |
 | `account-id.ts` | `xrplAddressToBytes32`, `bytes32ToXrplAddress` — ruling **D2** (left-pad 20→32) |
-| `hash.ts` | `hashVec`, `commitVec`, `TAG32`, `POLICY_ID32` — wrap persistentHash/persistentCommit |
+| `hash.ts` | `pad32`, `bytes32`, `uint`, `hashVec`, `hashTuple`, `commitTuple`, `TAG`, `POLICY_ID32` — native-typed tuple hashing over the public compact-runtime primitives (D3-corrected) |
 | `credential.ts` | `deriveHolderKey`, `credentialLeaf` (**D1** persistentCommit), `requestCommitment`, `nullifier`, `jurisdictionToUint` |
 | `merkle.ts` | `CredentialMerkleTree`, `merklePathRoot`, `verifyMerklePath`, path (de)serialization — ruling **D4** |
 | `bundle.ts` | `issueCredential`, `verifyCredentialBundle`, `privateCredentialFromBundle`, `CredentialBundle` |
@@ -23,7 +23,7 @@ construction. See `../../docs/PROTOCOL_DECISIONS.md` for the governing rulings (
 ## Commands
 
 ```sh
-node --test                                              # 34 tests (run from repo root or here)
+node --test                                              # 33 tests (run from repo root or here)
 node scripts/gen-vectors.ts                              # regenerate golden cross-language vectors
 node scripts/issue-demo-credential.ts --out-dir demo-out # mock issuer (SYNTHETIC data only)
 ```

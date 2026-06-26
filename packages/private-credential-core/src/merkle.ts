@@ -14,7 +14,7 @@
 // parent is H_node(current, sibling); otherwise H_node(sibling, current).
 
 import { MERKLE_DEPTH } from "./constants.ts";
-import { hashVec, TAG32 } from "./hash.ts";
+import { hashVec, TAG } from "./hash.ts";
 import { assertLen, toHex, fromHex } from "./bytes.ts";
 
 export const ZERO32: Uint8Array = new Uint8Array(32);
@@ -32,7 +32,7 @@ export interface MerklePath {
 
 /** Internal node hash. Domain-separated so a node can never be confused with a leaf. */
 export function nodeHash(left: Uint8Array, right: Uint8Array): Uint8Array {
-  return hashVec([TAG32.MERKLE_NODE, left, right]);
+  return hashVec([TAG.MERKLE_NODE, left, right]);
 }
 
 /** empty[k] = root of an all-zero subtree of height k. empty[0] = ZERO32. */

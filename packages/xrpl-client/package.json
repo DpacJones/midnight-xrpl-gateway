@@ -1,0 +1,17 @@
+{
+  "name": "@mxrpl/xrpl-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "XRPL account-binding challenge builder + verifier (real signature verification).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@mxrpl/private-credential-core": "*",
+    "xrpl": "4.6.0"
+  }
+}

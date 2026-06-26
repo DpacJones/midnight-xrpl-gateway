@@ -35,9 +35,9 @@ not mark the request complete, so a retry can proceed.
   real atomic claim (DB unique constraint / advisory lock); run a single process or swap the store before scaling out.
 
 ## Tests
-`node --test` — 11 §17.4 cases (mocked boundaries): happy path, missing/wrong-contract/wrong-policy/
-wrong-epoch receipt, commitment mismatch, idempotency, existing credential, submit-failure-not-persisted,
-fixed-tx-type, mainnet guard.
+`node --test` — 12 §17.4 cases (mocked boundaries): happy path, missing/wrong-contract/wrong-policy/
+wrong-epoch receipt, commitment mismatch, idempotency, concurrent-duplicate (issues once), existing credential,
+submit-failure-not-persisted, fixed-tx-type, mainnet guard.
 
 > The real `MidnightReceiptProvider` (indexer query of `approvedRequests`) and a live end-to-end issue
 > are wired in Phase 5 (needs the deployed contract + indexer). The pipeline logic + fixed builder +

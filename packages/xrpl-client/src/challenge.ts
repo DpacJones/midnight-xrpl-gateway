@@ -90,7 +90,7 @@ const ALLOWED_FIELDS = new Set([
 
 /**
  * Verify a signed challenge blob against the expected request. Fails closed: every check must pass.
- * `expected.account` is optional — if given, the signer must match it (account binding to the request).
+ * The signer is always bound to `expected.account` (required) — the verified subject account.
  */
 export function verifyChallenge(signedBlob: string, expected: ChallengeFields): VerifyResult {
   const reasons: string[] = [];

@@ -7,12 +7,18 @@ import { xrplAddressToBytes32, requestCommitment as recomputeCommitment, toHex, 
 import { verifyChallenge } from "@mxrpl/xrpl-client";
 import { assertSafeConfig, type GatewayConfig } from "./config.ts";
 import { idempotencyKey } from "./idempotency.ts";
+import { nullLogger, safeRequestFields, type GatewayLogger } from "./logger.ts";
+import { FixedWindowRateLimiter, type RateLimiter } from "./rate-limit.ts";
 import { GatewayError, type CredentialIssueRequest, type IssueRecord, type MidnightReceiptProvider, type XrplCredentialIssuer, type IdempotencyStore } from "./types.ts";
 
 export interface GatewayDeps {
   midnight: MidnightReceiptProvider;
   issuer: XrplCredentialIssuer;
   store: IdempotencyStore;
+  /** Structured redacted logging (default: nullLogger — wire consoleLogger in a service). */
+  logger?: GatewayLogger;
+  /** Per-subject issuance rate limiter (default: 20 / 60 s, in-process). */
+  rateLimiter?: RateLimiter;
 }
 
 const HEX32 = /^[0-9a-fA-F]{64}$/;
@@ -26,6 +32,8 @@ export interface Gateway {
 
 export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gateway {
   const config = assertSafeConfig(rawConfig); // hard mainnet guard at construction
+  const logger = deps.logger ?? nullLogger;
+  const rateLimiter = deps.rateLimiter ?? new FixedWindowRateLimiter();
 
   // Per-idempotency-key critical section (single-process). Serializes check-and-issue so two
   // concurrent duplicate requests can't both observe "no record" and both issue. NOTE: this is
@@ -44,6 +52,8 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
   }
 
   async function issueCredential(req: CredentialIssueRequest): Promise<IssueRecord> {
+    logger.log("request.received", safeRequestFields(req));
+    try {
     // 1. strict format/length validation
     assertHex32(req.requestCommitment, "requestCommitment");
     assertHex32(req.requestNonce, "requestNonce");
@@ -57,6 +67,10 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
     } catch {
       throw new GatewayError("validation:bad-account", "invalid xrplAccount");
     }
+
+    // 1b. rate limit per subject account — shed load before the expensive checks (sig verify,
+    //     indexer query, XRPL submit). Default 20 / 60 s; in-process (see README for multi-process).
+    if (!rateLimiter.tryAcquire(req.xrplAccount)) throw new GatewayError("rate-limited", "too many issuance requests for this account");
 
     // 2. allowlist: the one configured Midnight contract + policy
     if (req.midnightContractAddress !== config.midnight.contractAddress) throw new GatewayError("allowlist:contract", "midnightContractAddress not allowlisted");
@@ -87,10 +101,10 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
     // 10-16. critical section per idempotency key — the check-and-issue runs atomically so two
     //        concurrent duplicate requests cannot both issue.
     const key = idempotencyKey(config.xrpl.network, req.policyId, req.requestCommitment);
-    return withKeyLock(key, async () => {
+    const result = await withKeyLock(key, async () => {
       // 10. durable idempotency
       const existing = await deps.store.get(key);
-      if (existing) return { ...existing, status: "idempotent" };
+      if (existing) return { ...existing, status: "idempotent" as const };
 
       // 11. if the XRPL credential already exists, return it deterministically (no second issue)
       const already = await deps.issuer.existingCredentialId({ subject: req.xrplAccount, credentialTypeHex: config.xrpl.credentialTypeHex });
@@ -109,6 +123,13 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
       await deps.store.put(key, rec);
       return rec;
     });
+    logger.log("issuance.result", { ...safeRequestFields(req), status: result.status, credentialId: result.credentialId, createHash: result.createHash });
+    return result;
+    } catch (e) {
+      const code = e instanceof GatewayError ? e.code : "error";
+      logger.log("issuance.rejected", { ...safeRequestFields(req), code, message: e instanceof Error ? e.message : String(e) });
+      throw e;
+    }
   }
 
   return { issueCredential };

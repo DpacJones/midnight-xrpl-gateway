@@ -24,7 +24,7 @@ import {
   xrplAddressToBytes32,
 } from "@mxrpl/private-credential-core";
 import { buildChallenge } from "@mxrpl/xrpl-client";
-import { createGateway, createXrplCredentialIssuer, InMemoryIdempotencyStore, type GatewayConfig } from "@mxrpl/gateway";
+import { createGateway, createXrplCredentialIssuer, InMemoryIdempotencyStore, consoleLogger, type GatewayConfig } from "@mxrpl/gateway";
 import { GENESIS_MINT_WALLET_SEED, standaloneConfig } from "./config.ts";
 import { buildWallet, ensureDust } from "./wallet.ts";
 import { configureProviders } from "./providers.ts";
@@ -108,6 +108,7 @@ async function main() {
       midnight: createMidnightReceiptProvider(providers.publicDataProvider, contractAddress),
       issuer: createXrplCredentialIssuer(config, issuer.seed!),
       store: new InMemoryIdempotencyStore(),
+      logger: consoleLogger, // structured redacted issuance logs (§18)
     });
     const signedChallengeBlob = user.sign(buildChallenge({ account: user.classicAddress, policyId32: POLICY_ID32, policyEpoch: 1, requestCommitment: rc, requestNonce }) as never).tx_blob;
     console.log("gateway: issuing credential from the confirmed receipt...");

@@ -180,3 +180,44 @@ test("mainnet guard: gateway construction fails for non-testnet / mainnet endpoi
   assert.throws(() => assertSafeConfig({ ...config(), xrpl: { ...config().xrpl, network: "mainnet" as never } }), (e) => e instanceof GatewayError && e.code === "config:not-testnet");
   assert.throws(() => assertSafeConfig(config({ endpoint: "wss://xrplcluster.com" })), (e) => e instanceof GatewayError && e.code === "config:mainnet-endpoint");
 });
+
+test("rate limit sheds over-limit issuance before any expensive work", async () => {
+  const { req, commitmentHex } = validRequest();
+  const issuer = mockIssuer();
+  const g = createGateway(config(), { midnight: mockMidnight(new Set([commitmentHex])), issuer: issuer.issuer, store: new InMemoryIdempotencyStore(), rateLimiter: { tryAcquire: () => false } });
+  await assert.rejects(() => g.issueCredential(req), (e) => e instanceof GatewayError && e.code === "rate-limited");
+  assert.equal(issuer.calls.issue, 0);
+});
+
+test("logging is structured and redacts the blob + nonce", async () => {
+  const { req, commitmentHex } = validRequest();
+  const events: { event: string; fields?: Record<string, unknown> }[] = [];
+  const g = createGateway(config(), {
+    midnight: mockMidnight(new Set([commitmentHex])),
+    issuer: mockIssuer().issuer,
+    store: new InMemoryIdempotencyStore(),
+    logger: { log: (event, fields) => events.push({ event, fields }) },
+  });
+  await g.issueCredential(req);
+  const names = events.map((e) => e.event);
+  assert.ok(names.includes("request.received") && names.includes("issuance.result"), "key events logged");
+  const dump = JSON.stringify(events);
+  assert.ok(!dump.includes(req.signedChallengeBlob), "signed challenge blob must NOT be logged");
+  assert.ok(!dump.includes(req.requestNonce), "request nonce must NOT be logged");
+  assert.ok(dump.includes(req.requestCommitment) && dump.includes(req.xrplAccount), "safe fields are logged");
+});
+
+test("a rejection is logged with its code, blob still redacted", async () => {
+  const { req } = validRequest();
+  const events: { event: string; fields?: Record<string, unknown> }[] = [];
+  const g = createGateway(config(), {
+    midnight: mockMidnight(new Set()), // receipt missing -> rejection
+    issuer: mockIssuer().issuer,
+    store: new InMemoryIdempotencyStore(),
+    logger: { log: (event, fields) => events.push({ event, fields }) },
+  });
+  await assert.rejects(() => g.issueCredential(req));
+  const rejected = events.find((e) => e.event === "issuance.rejected");
+  assert.ok(rejected && rejected.fields?.code === "receipt:missing");
+  assert.ok(!JSON.stringify(events).includes(req.signedChallengeBlob));
+});

@@ -15,3 +15,4 @@ credential-bundle.json
 # Large proving/verifier keys + ZKIR; bindings are regenerable. The conformance test
 # skips gracefully when managed/ is absent.
 contracts/*/managed/
+apps/e2e-harness/e2e-artifact.json

@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Midnight XRPL Private Credential Gateway — standalone testnet reference dApp",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "contracts/*"
   ],
   "scripts": {
     "spike": "node scripts/spike-credentials.mjs",

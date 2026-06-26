@@ -92,15 +92,17 @@ Toolchain: compiler 0.31.1 → language 0.23 → runtime 0.16.0; proof server 8.
   `setPolicyRoot` = **88 ops**. The depth-16 Merkle fold (16 × `persistentHash` over `Vector<3,Bytes<32>>`)
   + the `persistentCommit` leaf + 3 other `persistentHash`es dominate `proveEligibility`. Bounded and
   acceptable; revisit D4 (stdlib field-Merkle) only if a real proving time proves unacceptable.
-- **Real proving time:** PENDING — requires a midnight-js prove harness (`httpClientProofProvider` +
-  `NodeZkConfigProvider`) driving the running proof server at :6300. The in-process §17.1 tests validate
-  circuit *logic* (no ZK proof emitted). Real proving is the Phase 2 exit gate's last item ("no `--skip-zk`
-  as final evidence") and the next step.
+- **Real proving time:** ✅ **~16.4 s** for `proveEligibility` (single cold run incl. key/param load) against
+  the real proof server (`midnightntwrk/proof-server:8.0.3`, :6300). Harness:
+  `contracts/private-credential-gateway/test/prove-harness.ts` — builds the unproven call tx from local states
+  via `createUnprovenCallTxFromInitialStates` (no node/indexer/wallet) and proves it with `httpClientProofProvider`.
+  Returns a real proven `Transaction` (no `--skip-zk`). 16.4 s is acceptable for the demo; the D4 custom-Merkle
+  decision stands (revisit only if this proves unacceptable).
 
-## Phase 2 status (2026-06-25)
+## Phase 2 status (2026-06-25) — COMPLETE
 ✅ contract compiles · ✅ cross-language conformance (circuit==TS==vector, 4 derivations) · ✅ §17.1 behaviour
-tests (13, incl. Merkle membership cross-validation) · ✅ constraint proxy · ⏳ real proving time + on-harness
-proof verification.
+tests (13, incl. Merkle membership cross-validation) · ✅ constraint proxy (418/88 ZKIR ops) · ✅ real proof
+generated + proving time measured (~16.4 s, real proof server).
 
 ## Audit status
 Codex has **not** yet audited commits `ad12259..8d0910e` (its environment had no WSL / no mounted copy). The repo

@@ -28,6 +28,17 @@ npm run compile          # -> managed/ (bindings, ZKIR, prover/verifier keys)
 `managed/` is gitignored (large keys, regenerable). The conformance test skips if it is absent, so
 compile before running `node --test` at the repo root to exercise the oracle.
 
+## Real proving (D4 / exit-gate evidence)
+
+```sh
+npm run prove           # proof server must be running on :6300
+```
+
+`test/prove-harness.ts` builds an unproven `proveEligibility` call tx from local states
+(`createUnprovenCallTxFromInitialStates` — no node/indexer/wallet) and proves it via
+`httpClientProofProvider` against the proof server. Measured: **~16.4 s** for a real proof
+(single cold run). Constraint proxy (ZKIR ops): `proveEligibility` 418, `setPolicyRoot` 88.
+
 ## Surface
 
 - **Ledger:** `admin, policyId, credentialRoot: Bytes<32>`; `policyEpoch, adultCutoffYear,

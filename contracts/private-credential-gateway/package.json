@@ -1,0 +1,10 @@
+{
+  "name": "@mxrpl/private-credential-gateway-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Compact contract for the Midnight XRPL Private Credential Gateway (normative encoding).",
+  "scripts": {
+    "compile": "compact compile +0.31.1 src/PrivateCredentialGateway.compact managed"
+  }
+}

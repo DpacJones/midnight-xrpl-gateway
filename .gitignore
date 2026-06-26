@@ -10,3 +10,8 @@ dist/
 demo-out/
 holder-secret.json
 credential-bundle.json
+
+# Compact build output (regenerate with `npm run compile` in the contract package).
+# Large proving/verifier keys + ZKIR; bindings are regenerable. The conformance test
+# skips gracefully when managed/ is absent.
+contracts/*/managed/

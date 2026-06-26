@@ -13,11 +13,14 @@ request; the gateway verifies it.
 - **Real cryptographic signature verification** (`xrpl.verifySignature`), not a bare `decode`. This is the
   class of bug the historical Atlantis login-signature vuln was (trusting a decoded tx without verifying it).
 - **Key→account binding:** `deriveAddress(SigningPubKey) === Account` (sign-with-own-key-claim-other-account is rejected).
-- **Exact canonical shape:** `Account==Destination`, `Amount=="1"`, `LastLedgerSequence==1`, `Sequence==0`, and a
-  strict field allowlist — **unexpected fields are rejected** so meaning can't be smuggled in.
+- **Exact canonical shape:** `Account==Destination`, `Amount=="1"`, `Fee=="1"`, `Flags==0`, `LastLedgerSequence==1`,
+  `Sequence==0`; a strict top-level field allowlist; and **nested memo allowlisting** (the wrapper has only `Memo`,
+  the `Memo` only `MemoType`+`MemoData`) — no field, top-level or nested, can smuggle meaning in. `expected.account`
+  is required (the verifier always binds the signer to the request's account).
 - **Non-submittable by construction:** `LastLedgerSequence:1` + `Sequence:0`.
 - **Memo binds** `policy_id || epoch(2 BE) || request_commitment || request_nonce` under `MemoType "MXRPL_V1"`.
 
 ## Tests
-`node --test` — 11 adversarial cases (§17.3): valid, unsigned, wrong key, account/destination/amount/LLS
-mismatch, post-sign memo tamper (breaks signature), unexpected field, memo field mismatches, nonce length.
+`node --test` — 14 adversarial cases (§17.3): valid, unsigned, wrong key, account/destination/amount/fee/flags/LLS
+mismatch, post-sign memo tamper (breaks signature), unexpected top-level field, extra nested memo field,
+memo field mismatches, nonce length.

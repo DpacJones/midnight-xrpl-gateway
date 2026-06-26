@@ -80,6 +80,33 @@ test("wrong LastLedgerSequence fails", () => {
   assert.ok(res.reasons.some((r) => /LastLedgerSequence != 1/.test(r)));
 });
 
+test("wrong fee fails", () => {
+  const exp = fields(w.classicAddress);
+  const t = buildChallenge(exp);
+  t.Fee = "2";
+  const res = verifyChallenge(sign(t), exp);
+  assert.ok(!res.ok);
+  assert.ok(res.reasons.some((r) => /Fee != 1/.test(r)));
+});
+
+test("non-zero flags fail", () => {
+  const exp = fields(w.classicAddress);
+  const t = buildChallenge(exp);
+  t.Flags = 131072; // tfPartialPayment — valid to sign, not part of the canonical challenge
+  const res = verifyChallenge(sign(t), exp);
+  assert.ok(!res.ok);
+  assert.ok(res.reasons.some((r) => /Flags != 0/.test(r)));
+});
+
+test("extra nested memo field (MemoFormat) fails", () => {
+  const exp = fields(w.classicAddress);
+  const t = buildChallenge(exp);
+  (t.Memos as any)[0].Memo.MemoFormat = "74657874"; // hex("text")
+  const res = verifyChallenge(sign(t), exp);
+  assert.ok(!res.ok);
+  assert.ok(res.reasons.some((r) => /unexpected memo fields/.test(r)));
+});
+
 test("modified memo after signing breaks the signature", () => {
   const exp = fields(w.classicAddress);
   const blob = sign(buildChallenge(exp));

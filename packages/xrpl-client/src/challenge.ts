@@ -92,7 +92,7 @@ const ALLOWED_FIELDS = new Set([
  * Verify a signed challenge blob against the expected request. Fails closed: every check must pass.
  * `expected.account` is optional — if given, the signer must match it (account binding to the request).
  */
-export function verifyChallenge(signedBlob: string, expected: ChallengeFields & { account?: string }): VerifyResult {
+export function verifyChallenge(signedBlob: string, expected: ChallengeFields): VerifyResult {
   const reasons: string[] = [];
   const fail = (r: string): VerifyResult => ({ ok: false, reasons: [...reasons, r] });
 
@@ -125,16 +125,18 @@ export function verifyChallenge(signedBlob: string, expected: ChallengeFields & 
   }
   if (derived !== tx.Account) reasons.push("SigningPubKey does not derive to Account");
 
-  // 3. exact canonical shape
+  // 3. exact canonical shape — every field pinned; deviations rejected
   for (const k of Object.keys(tx)) if (!ALLOWED_FIELDS.has(k)) reasons.push(`unexpected field: ${k}`);
   if (tx.TransactionType !== "Payment") reasons.push("TransactionType != Payment");
   if (tx.Account !== tx.Destination) reasons.push("Account != Destination");
   if (tx.Amount !== "1") reasons.push("Amount != 1");
+  if (tx.Fee !== "1") reasons.push("Fee != 1");
+  if ((tx.Flags ?? 0) !== 0) reasons.push("Flags != 0");
   if (tx.LastLedgerSequence !== 1) reasons.push("LastLedgerSequence != 1");
   if (tx.Sequence !== 0) reasons.push("Sequence != 0");
 
-  // 4. account binding to the request (optional expected.account)
-  if (expected.account !== undefined && tx.Account !== expected.account) reasons.push("Account != expected account");
+  // 4. account binding to the request (required)
+  if (tx.Account !== expected.account) reasons.push("Account != expected account");
 
   // 5. memo binds policy_id, epoch, request_commitment, request_nonce
   reasons.push(...verifyMemo(tx, expected));
@@ -143,10 +145,16 @@ export function verifyChallenge(signedBlob: string, expected: ChallengeFields & 
 }
 
 function verifyMemo(tx: Record<string, unknown>, expected: ChallengeFields): string[] {
-  const memos = tx.Memos as { Memo?: { MemoType?: string; MemoData?: string } }[] | undefined;
+  const memos = tx.Memos as Record<string, unknown>[] | undefined;
   if (!Array.isArray(memos) || memos.length !== 1) return ["memo: expected exactly one memo"];
-  const m = memos[0]?.Memo;
+  // wrapper must be exactly { Memo: {...} } — no smuggled sibling keys
+  const wrapper = memos[0];
+  if (Object.keys(wrapper).length !== 1 || !("Memo" in wrapper)) return ["memo: wrapper must contain only Memo"];
+  const m = wrapper.Memo as { MemoType?: string; MemoData?: string } & Record<string, unknown>;
   if (!m || typeof m.MemoType !== "string" || typeof m.MemoData !== "string") return ["memo: malformed"];
+  // Memo must contain exactly MemoType + MemoData — reject MemoFormat or any extra field
+  const mk = Object.keys(m);
+  if (mk.length !== 2 || !mk.includes("MemoType") || !mk.includes("MemoData")) return ["memo: unexpected memo fields"];
   if (m.MemoType.toUpperCase() !== MEMO_TYPE_HEX) return ["memo: wrong MemoType"];
 
   let data: Uint8Array;

@@ -3,7 +3,7 @@
 // root. It does NOT contain the holder secret — the user keeps that; the issuer only ever sees
 // holder_key.
 
-import { POLICY_V1 } from "./constants.ts";
+import { POLICY_V1, MERKLE_DEPTH } from "./constants.ts";
 import { toHex, fromHex, randomBytes32, assertLen } from "./bytes.ts";
 import { POLICY_ID32 } from "./hash.ts";
 import { credentialLeaf, type PrivateCredential } from "./credential.ts";
@@ -100,9 +100,12 @@ export function issueCredential(args: {
 /** Self-consistency check: leaf matches the fields, and the path resolves to the bundle root. */
 export function verifyCredentialBundle(b: CredentialBundle): { ok: boolean; reasons: string[] } {
   const reasons: string[] = [];
+  if (b.schemaVersion !== POLICY_V1.schemaVersion) reasons.push(`unexpected schema version ${b.schemaVersion}`);
   const recomputedLeaf = toHex(credentialLeaf(privateCredentialFromBundle(b)));
   if (recomputedLeaf !== b.leaf) reasons.push("leaf does not match credential fields");
   const path = deserializeMerklePath(b.merklePath);
+  // External-bundle strictness: production paths must be exactly MERKLE_DEPTH deep (Codex audit).
+  if (path.entries.length !== MERKLE_DEPTH) reasons.push(`merkle path must have ${MERKLE_DEPTH} entries, got ${path.entries.length}`);
   if (toHex(path.leaf) !== b.leaf) reasons.push("merkle path leaf != bundle leaf");
   if (!verifyMerklePath(path, fromHex(b.credentialRoot))) reasons.push("merkle path does not resolve to credentialRoot");
   return { ok: reasons.length === 0, reasons };

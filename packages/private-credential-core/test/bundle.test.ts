@@ -10,7 +10,7 @@ import { toHex } from "../src/bytes.ts";
 function issueOne(over: Partial<Parameters<typeof issueCredential>[0]> = {}) {
   const holderSecret = randomBytes32();
   const holderKey = deriveHolderKey(holderSecret);
-  const tree = over.tree ?? new CredentialMerkleTree(8);
+  const tree = over.tree ?? new CredentialMerkleTree();
   const { bundle, index } = issueCredential({
     tree,
     holderKey,
@@ -59,7 +59,7 @@ test("tampering with the root invalidates the bundle (path mismatch)", () => {
 });
 
 test("two credentials in the same tree each verify against the final root", () => {
-  const tree = new CredentialMerkleTree(8);
+  const tree = new CredentialMerkleTree();
   const a = issueOne({ tree });
   const b = issueOne({ tree });
   // a's captured root is stale after b is inserted; re-derive a's path against the final tree

@@ -6,8 +6,9 @@
 ## 1. Repository path and branch
 - WSL: `~/projects/midnight-xrpl-gateway` · UNC: `\\wsl.localhost\Ubuntu\home\denni\projects\midnight-xrpl-gateway`
 - Remote (private): `https://github.com/DpacJones/midnight-xrpl-gateway.git`
-- Offline audit copy: `_codex-audit/midnight-xrpl-gateway.bundle` (+ `mxg-audit/` checkout) refreshed to `706dafe`.
-- Branch `master`, tip **`706dafe`**.
+- Branch `master`. **Audit-copy tip advances as audit fixes land** (this handoff is the bundle's current HEAD).
+- **Phase 2 exit-gate (real proof) commit: `706dafe`.** Codex audit fixes applied on top (schema enforcement,
+  prove-harness moved out of `test/`, tuple/merkle hardening) — see `docs/PROTOCOL_DECISIONS.md` "Codex audit".
 
 ## 2. Commit list by phase
 | Phase | Commits |
@@ -60,7 +61,7 @@ Clean (`git status --porcelain` = 0). `managed/`, `node_modules/`, `demo-out/`, 
   `packages/private-credential-core/src/{account-id,hash,credential,merkle,bundle,bytes}.ts`
 - Cross-language oracle: `packages/private-credential-core/test/conformance.test.ts`
 - Contract behaviour + witnesses: `contracts/private-credential-gateway/{test/gateway.test.ts,src/witnesses.ts}`
-- Real proving: `contracts/private-credential-gateway/test/prove-harness.ts`
+- Real proving: `contracts/private-credential-gateway/scripts/prove-harness.ts` (outside `test/` by design)
 - Golden vectors: `packages/private-credential-core/test/vectors/credential.json`
 
 ## 9. Deviations from the Mission Profile (with rationale)

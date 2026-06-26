@@ -117,11 +117,16 @@ export class CredentialMerkleTree {
   }
 }
 
-/** Recompute the root implied by a leaf + inclusion path (the circuit does the same fold). */
+/**
+ * Recompute the root implied by a leaf + inclusion path (the circuit does the same fold). Generic
+ * over depth — the path length IS the depth. Bundle-level depth strictness lives in
+ * verifyCredentialBundle (the external-input boundary).
+ */
 export function merklePathRoot(path: MerklePath): Uint8Array {
   let cur = assertLen(path.leaf, 32, "leaf");
   for (const e of path.entries) {
     assertLen(e.sibling, 32, "sibling");
+    if (typeof e.goesLeft !== "boolean") throw new Error("merkle path entry goesLeft must be a boolean");
     cur = e.goesLeft ? nodeHash(cur, e.sibling) : nodeHash(e.sibling, cur);
   }
   return cur;
@@ -150,9 +155,14 @@ export function serializeMerklePath(p: MerklePath): SerializedMerklePath {
 }
 
 export function deserializeMerklePath(s: SerializedMerklePath): MerklePath {
+  if (!Array.isArray(s.entries)) throw new Error("merkle path entries must be an array");
+  if (!Number.isInteger(s.index) || s.index < 0) throw new Error(`merkle path index must be a non-negative integer: ${s.index}`);
   return {
     leaf: assertLen(fromHex(s.leaf), 32, "leaf"),
     index: s.index,
-    entries: s.entries.map((e) => ({ sibling: assertLen(fromHex(e.sibling), 32, "sibling"), goesLeft: e.goesLeft })),
+    entries: s.entries.map((e) => {
+      if (typeof e.goesLeft !== "boolean") throw new Error("merkle path entry goesLeft must be a boolean");
+      return { sibling: assertLen(fromHex(e.sibling), 32, "sibling"), goesLeft: e.goesLeft };
+    }),
   };
 }

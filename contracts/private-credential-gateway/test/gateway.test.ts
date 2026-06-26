@@ -169,6 +169,12 @@ if (!existsSync(fileURLToPath(bindingsUrl))) {
     assert.throws(() => sim.prove(c, randomBytes32(), randomBytes32()), /expired/i);
   });
 
+  test("non-v1 schema version fails (root purity is not a hidden assumption)", () => {
+    const c = mkCred({ schemaVersion: 2 }); // leaf with schema 2 IS in the tree -> membership passes
+    const sim = makeSim([c]);
+    assert.throws(() => sim.prove(c, randomBytes32(), randomBytes32()), /schema/i);
+  });
+
   // ---- nullifier / account binding ----
   test("same nullifier cannot be used twice", () => {
     const c = mkCred();

@@ -88,8 +88,8 @@ Implemented in `src/merkle.ts`; the circuit must fold paths identically.
 ## D4 measurements (Codex requirement)
 Toolchain: compiler 0.31.1 → language 0.23 → runtime 0.16.0; proof server 8.0.3.
 
-- **Circuit size (ZKIR op count, proxy for constraints):** `proveEligibility` = **418 ops**,
-  `setPolicyRoot` = **88 ops**. The depth-16 Merkle fold (16 × `persistentHash` over `Vector<3,Bytes<32>>`)
+- **Circuit size (ZKIR op count, proxy for constraints):** `proveEligibility` = **420 ops**
+  (incl. the v1 schema-version assert added in the Codex audit), `setPolicyRoot` = **88 ops**. The depth-16 Merkle fold (16 × `persistentHash` over `Vector<3,Bytes<32>>`)
   + the `persistentCommit` leaf + 3 other `persistentHash`es dominate `proveEligibility`. Bounded and
   acceptable; revisit D4 (stdlib field-Merkle) only if a real proving time proves unacceptable.
 - **Real proving time:** ✅ **~16.4 s** for `proveEligibility` (single cold run incl. key/param load) against
@@ -103,6 +103,18 @@ Toolchain: compiler 0.31.1 → language 0.23 → runtime 0.16.0; proof server 8.
 ✅ contract compiles · ✅ cross-language conformance (circuit==TS==vector, 4 derivations) · ✅ §17.1 behaviour
 tests (13, incl. Merkle membership cross-validation) · ✅ constraint proxy (418/88 ZKIR ops) · ✅ real proof
 generated + proving time measured (~16.4 s, real proof server).
+
+## Codex audit (2026-06-25) — accepted + fixes applied
+Codex accepted D1–D4, the disclosure model, admin-secret auth, and the witness trust boundary. Required/recommended
+fixes, all applied:
+- **schemaVersion now enforced in-circuit:** `proveEligibility` asserts `sv == 1` so "root purity" is not a hidden
+  off-chain assumption. Added a behaviour test (non-v1 schema fails).
+- **Prove harness moved out of test discovery:** `test/prove-harness.ts` → `scripts/prove-harness.ts` so
+  `node --test` never tries to run it / require compiled artifacts + a proof server.
+- **`CompactTuple.fromValue`** now throws (unused; hashing only uses `toValue`) rather than being subtly wrong.
+- **Strict bundle validation:** `verifyCredentialBundle` enforces schema == v1 and merkle path depth == `MERKLE_DEPTH`;
+  `merklePathRoot`/`deserializeMerklePath` enforce boolean `goesLeft` + 32-byte siblings (kept generic over depth).
+- Handoff metadata corrected to the current tip.
 
 ## Audit status
 Codex has **not** yet audited commits `ad12259..8d0910e` (its environment had no WSL / no mounted copy). The repo

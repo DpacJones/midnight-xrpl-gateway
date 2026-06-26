@@ -6,7 +6,7 @@
   "description": "Compact contract for the Midnight XRPL Private Credential Gateway (normative encoding).",
   "scripts": {
     "compile": "compact compile +0.31.1 src/PrivateCredentialGateway.compact managed",
-    "prove": "node test/prove-harness.ts"
+    "prove": "node scripts/prove-harness.ts"
   },
   "dependencies": {
     "@mxrpl/private-credential-core": "*",

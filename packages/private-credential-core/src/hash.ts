@@ -50,8 +50,11 @@ class CompactTuple {
   alignment(): unknown[] {
     return this.elements.reduce<unknown[]>((acc, e) => acc.concat(e.alignment()), []);
   }
-  fromValue(value: unknown): unknown[] {
-    return this.elements.map((e) => e.fromValue(value));
+  fromValue(_value: unknown): unknown[] {
+    // Deserialization is never used here — tuples are only serialized via toValue() for hashing.
+    // (The compiler-generated tuple class threads a stateful reader through each element's
+    // fromValue; replicating that without the reader is error-prone, so we forbid it outright.)
+    throw new Error("CompactTuple.fromValue is not supported (tuples are hash-only here)");
   }
   toValue(tuple: unknown[]): unknown[] {
     return this.elements.reduce<unknown[]>((acc, e, i) => acc.concat(e.toValue(tuple[i])), []);

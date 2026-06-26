@@ -34,7 +34,8 @@ compile before running `node --test` at the repo root to exercise the oracle.
 npm run prove           # proof server must be running on :6300
 ```
 
-`test/prove-harness.ts` builds an unproven `proveEligibility` call tx from local states
+`scripts/prove-harness.ts` (deliberately NOT under `test/`, so `node --test` never tries to run it)
+builds an unproven `proveEligibility` call tx from local states
 (`createUnprovenCallTxFromInitialStates` — no node/indexer/wallet) and proves it via
 `httpClientProofProvider` against the proof server. Measured: **~16.4 s** for a real proof
 (single cold run). Constraint proxy (ZKIR ops): `proveEligibility` 418, `setPolicyRoot` 88.

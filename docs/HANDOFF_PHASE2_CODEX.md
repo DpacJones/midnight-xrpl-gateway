@@ -39,7 +39,7 @@ Clean (`git status --porcelain` = 0). `managed/`, `node_modules/`, `demo-out/`, 
 - `npm run compile` (contract): succeeds → bindings + prover/verifier keys + ZKIR.
 - `npm run prove` (contract): **real ZK proof** for `proveEligibility` in **~16.4 s** against proof-server 8.0.3;
   returns a proven `Transaction`. No `--skip-zk`.
-- D4 circuit size (ZKIR ops): `proveEligibility` **418**, `setPolicyRoot` **88**.
+- D4 circuit size (ZKIR ops): `proveEligibility` **420**, `setPolicyRoot` **88**.
 
 ## 6. Contract address + public test transaction hashes
 - No Midnight contract deployed (prove harness proves locally; deploy is a later phase).

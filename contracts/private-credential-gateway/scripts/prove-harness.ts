@@ -2,7 +2,7 @@
 // proveEligibility against the proof server (:6300) and measures proving time. No node /
 // indexer / wallet — builds the unproven call tx from local states, then proves it.
 //
-//   node test/prove-harness.ts        (proof server must be running on :6300)
+//   node scripts/prove-harness.ts        (proof server must be running on :6300)
 
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";

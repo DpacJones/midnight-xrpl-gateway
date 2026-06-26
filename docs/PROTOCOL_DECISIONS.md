@@ -94,14 +94,14 @@ Toolchain: compiler 0.31.1 → language 0.23 → runtime 0.16.0; proof server 8.
   acceptable; revisit D4 (stdlib field-Merkle) only if a real proving time proves unacceptable.
 - **Real proving time:** ✅ **~16.4 s** for `proveEligibility` (single cold run incl. key/param load) against
   the real proof server (`midnightntwrk/proof-server:8.0.3`, :6300). Harness:
-  `contracts/private-credential-gateway/test/prove-harness.ts` — builds the unproven call tx from local states
+  `contracts/private-credential-gateway/scripts/prove-harness.ts` — builds the unproven call tx from local states
   via `createUnprovenCallTxFromInitialStates` (no node/indexer/wallet) and proves it with `httpClientProofProvider`.
   Returns a real proven `Transaction` (no `--skip-zk`). 16.4 s is acceptable for the demo; the D4 custom-Merkle
   decision stands (revisit only if this proves unacceptable).
 
 ## Phase 2 status (2026-06-25) — COMPLETE
 ✅ contract compiles · ✅ cross-language conformance (circuit==TS==vector, 4 derivations) · ✅ §17.1 behaviour
-tests (13, incl. Merkle membership cross-validation) · ✅ constraint proxy (418/88 ZKIR ops) · ✅ real proof
+tests (13, incl. Merkle membership cross-validation) · ✅ constraint proxy (420/88 ZKIR ops) · ✅ real proof
 generated + proving time measured (~16.4 s, real proof server).
 
 ## Codex audit (2026-06-25) — accepted + fixes applied

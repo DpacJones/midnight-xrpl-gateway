@@ -38,7 +38,7 @@ npm run prove           # proof server must be running on :6300
 builds an unproven `proveEligibility` call tx from local states
 (`createUnprovenCallTxFromInitialStates` — no node/indexer/wallet) and proves it via
 `httpClientProofProvider` against the proof server. Measured: **~16.4 s** for a real proof
-(single cold run). Constraint proxy (ZKIR ops): `proveEligibility` 418, `setPolicyRoot` 88.
+(single cold run). Constraint proxy (ZKIR ops): `proveEligibility` 420, `setPolicyRoot` 88.
 
 ## Surface
 

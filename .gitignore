@@ -16,3 +16,7 @@ credential-bundle.json
 # skips gracefully when managed/ is absent.
 contracts/*/managed/
 apps/e2e-harness/e2e-artifact.json
+
+# Midnight LevelDB private-state store (regenerated per run; contains signing keys + private state — NEVER commit)
+apps/e2e-harness/midnight-level-db/
+**/midnight-level-db/

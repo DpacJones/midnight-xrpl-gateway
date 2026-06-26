@@ -140,7 +140,7 @@ async function main() {
       paymentHashes: { denied: denied.hash, allowed: allowed.hash, afterRevoke: afterRevoke.hash, delete: del.hash },
     };
 
-    const gate = denied.code === "tecNO_PERMISSION" && allowed.code === "tesSUCCESS" && afterRevoke.code === "tecBAD_CREDENTIALS";
+    const gate = denied.code === "tecNO_PERMISSION" && allowed.code === "tesSUCCESS" && del.code === "tesSUCCESS" && afterRevoke.code === "tecBAD_CREDENTIALS";
     artifact.E2E_LIFECYCLE_PROVEN = gate;
     writeFileSync(new URL("../e2e-artifact.json", import.meta.url), JSON.stringify(artifact, null, 2));
 
@@ -150,6 +150,8 @@ async function main() {
     console.log(`  payment after revocation:   ${afterRevoke.code} (expect tecBAD_CREDENTIALS)`);
     console.log(`  ${gate ? "E2E GREEN — private Midnight eligibility -> gateway -> XRPL-enforced credential, full lifecycle." : "E2E RED"}`);
     console.log("  artifact: apps/e2e-harness/e2e-artifact.json (redacted: addresses/hashes only, no secrets)");
+    // Fail the process if any lifecycle code is off — a red gate must NOT exit success.
+    if (!gate) throw new Error(`E2E lifecycle gate failed: without=${denied.code} with=${allowed.code} delete=${del.code} afterRevoke=${afterRevoke.code}`);
   } finally {
     if (c.isConnected()) await c.disconnect();
   }

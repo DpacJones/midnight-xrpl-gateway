@@ -6,7 +6,8 @@
   "description": "Midnight XRPL Private Credential Gateway — standalone testnet reference dApp",
   "workspaces": [
     "packages/*",
-    "contracts/*"
+    "contracts/*",
+    "apps/*"
   ],
   "scripts": {
     "spike": "node scripts/spike-credentials.mjs",
@@ -14,5 +15,8 @@
   },
   "dependencies": {
     "xrpl": "4.6.0"
+  },
+  "overrides": {
+    "smoldot": "npm:@aspect-build/empty@0.0.0"
   }
 }

@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
-import { connectMidnight, listWallets, type WalletInfo } from "./midnight/providers.ts";
+import { connectMidnight, listWallets, type MidnightConnection, type WalletInfo } from "./midnight/providers.ts";
+import { deployGateway } from "./midnight/gateway-api.ts";
+import { createDemoPolicy, type DemoPolicy } from "./lib/demo-policy.ts";
 import { gatewayHealthy } from "./lib/gateway-client.ts";
 
 const NETWORK_ID = import.meta.env.VITE_NETWORK_ID ?? "undeployed";
 const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL ?? "http://localhost:8787";
 const PROVER_OVERRIDE = import.meta.env.VITE_PROVER_URI; // optional: force a local proof server
+const IS_ADMIN = new URLSearchParams(window.location.search).has("admin"); // ?admin → one-time deploy UI
 
 // First UI: pick a Midnight wallet (1AM / Lace), connect, and show WHERE proving happens (the honest
 // hosted-vs-local privacy indicator). The full flow (prove -> sign challenge -> request credential ->
@@ -17,6 +20,10 @@ export function App() {
   const [prover, setProver] = useState<{ uri: string; kind: "local" | "hosted" } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [gatewayUp, setGatewayUp] = useState<boolean | null>(null);
+  const [connection, setConnection] = useState<MidnightConnection | null>(null);
+  const [deploying, setDeploying] = useState(false);
+  const [deployed, setDeployed] = useState<{ address: string; policy: DemoPolicy } | null>(null);
+  const [deployError, setDeployError] = useState<string | null>(null);
 
   useEffect(() => {
     void gatewayHealthy(GATEWAY_URL).then(setGatewayUp);
@@ -38,12 +45,28 @@ export function App() {
     setConnectedVia(wallet.name);
     try {
       const conn = await connectMidnight(NETWORK_ID, wallet.key, PROVER_OVERRIDE);
+      setConnection(conn);
       setCoinKey(conn.providers.walletProvider.getCoinPublicKey());
       setProver(conn.prover);
       setStatus("connected");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setStatus("error");
+    }
+  }
+
+  async function deploy(): Promise<void> {
+    if (!connection) return;
+    setDeploying(true);
+    setDeployError(null);
+    try {
+      const policy = createDemoPolicy();
+      const dc = await deployGateway(connection.providers, policy.args);
+      setDeployed({ address: dc.deployTxData.public.contractAddress, policy });
+    } catch (e) {
+      setDeployError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDeploying(false);
     }
   }
 
@@ -104,6 +127,35 @@ export function App() {
               </p>
             )}
           </>
+        )}
+
+        {IS_ADMIN && status === "connected" && (
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px dashed #ddd" }}>
+            <p style={{ margin: "0 0 8px", fontSize: 13, color: "#666" }}>
+              Admin — deploy a one-time demo contract (synthetic policy) on <code>{NETWORK_ID}</code>.
+            </p>
+            <button onClick={deploy} disabled={deploying} style={{ padding: "8px 14px", borderRadius: 8, cursor: "pointer" }}>
+              {deploying ? "Deploying…" : "Deploy demo contract"}
+            </button>
+            {deployed && (
+              <div style={{ marginTop: 12, fontSize: 12 }}>
+                <p style={{ margin: "0 0 6px" }}>✅ Deployed at <code style={{ wordBreak: "break-all" }}>{deployed.address}</code></p>
+                <p style={{ margin: "0 0 4px", color: "#666" }}>
+                  Save this — contract address → dApp/service config; <code>credential</code> → the demo user; <code>adminSecret</code> → to rotate the root.
+                </p>
+                <textarea
+                  readOnly
+                  value={JSON.stringify(
+                    { contractAddress: deployed.address, policyId: deployed.policy.policyIdHex, adminSecret: deployed.policy.adminSecretHex, credential: deployed.policy.credential },
+                    null,
+                    2,
+                  )}
+                  style={{ width: "100%", height: 160, fontSize: 11, fontFamily: "monospace" }}
+                />
+              </div>
+            )}
+            {deployError && <p style={{ marginTop: 8, color: "#c0392b", fontSize: 12 }}>⚠ {deployError}</p>}
+          </div>
         )}
 
         {error && <p style={{ marginTop: 12, color: "#c0392b" }}>⚠ {error}</p>}

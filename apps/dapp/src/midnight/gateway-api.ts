@@ -5,7 +5,7 @@
 //
 // The exact browser join/prove shape is validated live once 1AM + a deployed contract are present.
 import { CompiledContract } from "@midnight-ntwrk/compact-js";
-import { findDeployedContract, type FoundContract } from "@midnight-ntwrk/midnight-js/contracts";
+import { deployContract, findDeployedContract, type DeployedContract, type FoundContract } from "@midnight-ntwrk/midnight-js/contracts";
 import {
   GatewayContractCtor,
   witnesses,
@@ -22,6 +22,19 @@ const gatewayCompiledContract = CompiledContract.make("private-credential-gatewa
   CompiledContract.withWitnesses(witnesses),
   CompiledContract.withCompiledFileAssets(zkConfigPath),
 );
+
+/** Constructor args: (admin_key, policy_id, initial_root, initial_epoch, cutoff_year, allowed_jur). */
+export type GatewayCtorArgs = [Uint8Array, Uint8Array, Uint8Array, bigint, bigint, bigint];
+
+/** Admin one-time deploy (via the connected wallet — e.g. 1AM on Preview). Returns the deployed contract. */
+export async function deployGateway(providers: GatewayProviders, args: GatewayCtorArgs): Promise<DeployedContract<GatewayContract>> {
+  return deployContract(providers, {
+    compiledContract: gatewayCompiledContract,
+    privateStateId: GatewayPrivateStateId,
+    initialPrivateState: createGatewayPrivateState(),
+    args,
+  });
+}
 
 export async function joinGateway(providers: GatewayProviders, contractAddress: string): Promise<FoundContract<GatewayContract>> {
   return findDeployedContract(providers, {

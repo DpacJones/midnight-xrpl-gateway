@@ -91,8 +91,12 @@ const server = createServer(async (req, res) => {
       let parsed: CredentialIssueRequest;
       try {
         parsed = JSON.parse(await readBody(req)) as CredentialIssueRequest;
-      } catch {
-        send(res, 400, { error: "bad-json", message: "body must be a JSON CredentialIssueRequest" });
+      } catch (e) {
+        if (e instanceof Error && e.message === "body too large") {
+          send(res, 413, { error: "payload-too-large", message: "request body exceeds 16 KiB" });
+        } else {
+          send(res, 400, { error: "bad-json", message: "body must be a JSON CredentialIssueRequest" });
+        }
         return;
       }
       try {

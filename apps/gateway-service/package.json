@@ -6,7 +6,8 @@
   "description": "HTTP service wrapping the scoped credential gateway: POST /issue-credential. Holds the XRPL issuer seed (backend-only — never in the browser), reads Midnight approvedRequests via the indexer, issues one fixed CredentialCreate. Testnet only.",
   "scripts": {
     "start": "tsx src/server.ts",
-    "dev": "tsx watch src/server.ts"
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@mxrpl/gateway": "*",
@@ -17,6 +18,8 @@
     "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "^4.0.4"
   },
   "devDependencies": {
-    "tsx": "^4.19.2"
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0"
   }
 }

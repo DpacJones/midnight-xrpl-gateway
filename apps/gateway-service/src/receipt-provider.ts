@@ -18,7 +18,10 @@ export function createIndexerReceiptProvider(
       if (contractAddress !== configuredContractAddress) return false; // defence in depth
       const st = await publicDataProvider.queryContractState(contractAddress);
       if (!st) return false;
-      const led = ledgerOf((st as { data?: unknown }).data ?? st) as {
+      // queryContractState returns the contract state; ledgerOf decodes its StateValue. Newer/older
+      // shapes expose it as `.data` or directly — handle both, cast to ledgerOf's exact param type.
+      const stateValue = (st as { data?: unknown }).data ?? st;
+      const led = ledgerOf(stateValue as Parameters<typeof ledgerOf>[0]) as {
         approvedRequests: { member(b: Uint8Array): boolean };
       };
       return led.approvedRequests.member(fromHex(requestCommitmentHex));

@@ -28,3 +28,7 @@ apps/gateway-service/gateway-idempotency.json
 # dApp build artifacts
 apps/dapp/.vite
 apps/dapp/dist
+
+# example env files ARE committed (the .env.* rule above catches them)
+!**/.env.example
+apps/dapp/tsconfig.tsbuildinfo

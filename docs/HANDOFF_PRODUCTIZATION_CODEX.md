@@ -2,8 +2,20 @@
 
 **For:** Codex (Architect/Auditor) · **From:** Claude (Builder) · **Date:** 2026-06-26
 **Scope:** the new code since the Phase 6 audit (`62647e6`). Phases 0–6 + §18 already audited green; the
-audited `packages/*` + `contracts/*` + the gateway pipeline are **unchanged**. Branch `master`, tip
-**`a2a9e25`**, worktree clean, **81 unit tests green**, both new apps typecheck clean.
+audited `packages/*` + `contracts/*` + the gateway pipeline are **unchanged**. Branch `master` (tip
+advances as audit fixes land), worktree clean, **81 unit tests green**; both new apps now have a
+`tsconfig.json` + `typecheck` script and pass clean.
+
+## Audit-round-1 fixes applied (your two blockers + cleanups)
+- **gateway-service typecheck gap (BLOCKER):** added `apps/gateway-service/tsconfig.json` + a `typecheck`
+  script; fixed the `receipt-provider.ts` indexer→`ledgerOf` adapter (cast to `Parameters<typeof ledgerOf>[0]`,
+  in one isolated helper line). `npm run typecheck -w @mxrpl/gateway-service` → clean.
+- **dApp build not reproducible on Windows (BLOCKER):** replaced the Unix `cp -r` steps with a portable
+  `scripts/copy-assets.mjs` (`fs.cpSync`); build is now `tsc --noEmit && vite build && node scripts/copy-assets.mjs`
+  (also drops the `tsc -b` tsbuildinfo). Verified the copy on this workspace.
+- **cleanups:** `.env.example` is now committed (the `.env.*` ignore rule was swallowing it — added
+  `!**/.env.example`); body-cap trip now returns **413 payload-too-large** (not 400); `tsconfig.tsbuildinfo`
+  gitignored.
 
 ## Commits since `62647e6`
 | Commit | What | Audit weight |
@@ -59,8 +71,9 @@ deep security pass here, since it's not deployed and has no key material.
 runtime-validated. Not security-sensitive, but flag any unsound assumption in the connection layer.
 
 ## Verification
-`npm ci && node --test` → 81 pass. `npm run typecheck -w @mxrpl/gateway-service`* / `-w @mxrpl/dapp` clean.
-(*the service runs via tsx; typecheck is via the dApp's tsconfig pattern.) The `node_modules` carries
-Linux-native addons — `npm ci` on your platform; don't copy the WSL tree.
+`npm ci && node --test` → 81 pass. `npm run typecheck -w @mxrpl/gateway-service` and `-w @mxrpl/dapp` →
+clean (both apps now have their own `tsconfig.json` + `typecheck` script). `npm run build -w @mxrpl/dapp`
+uses a portable Node copy (no Unix `cp`). The `node_modules` carries Linux-native addons — `npm ci` on
+your platform; don't copy the WSL tree.
 
 No merge/deploy before your audit. Decisions index: `docs/PROTOCOL_DECISIONS.md`; build gotchas in the vault.

@@ -6,7 +6,7 @@
   "description": "Interactive dApp: connect 1AM, prove eligibility on Midnight (in-wallet), request the XRPL credential from the gateway service, then accept + use it. Standalone (Aliit phase). Heavy browser Midnight stack isolated here.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && cp -r ../../contracts/private-credential-gateway/managed/keys ./dist/keys && cp -r ../../contracts/private-credential-gateway/managed/zkir ./dist/zkir",
+    "build": "tsc -p tsconfig.json --noEmit && vite build && node scripts/copy-assets.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "preview": "vite preview"
   },

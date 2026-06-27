@@ -1,0 +1,22 @@
+{
+  "name": "@mxrpl/gateway-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "HTTP service wrapping the scoped credential gateway: POST /issue-credential. Holds the XRPL issuer seed (backend-only — never in the browser), reads Midnight approvedRequests via the indexer, issues one fixed CredentialCreate. Testnet only.",
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts"
+  },
+  "dependencies": {
+    "@mxrpl/gateway": "*",
+    "@mxrpl/private-credential-core": "*",
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/ledger-v8": "^8.0.0",
+    "@midnight-ntwrk/midnight-js": "^4.0.4",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "^4.0.4"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  }
+}

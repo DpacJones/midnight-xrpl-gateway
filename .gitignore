@@ -24,3 +24,7 @@ apps/e2e-harness/midnight-level-db/
 # Gateway service secrets + state (never commit)
 apps/gateway-service/.env
 apps/gateway-service/gateway-idempotency.json
+
+# dApp build artifacts
+apps/dapp/.vite
+apps/dapp/dist

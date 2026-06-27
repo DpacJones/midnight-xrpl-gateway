@@ -1,0 +1,42 @@
+{
+  "name": "@mxrpl/dapp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Interactive dApp: connect 1AM, prove eligibility on Midnight (in-wallet), request the XRPL credential from the gateway service, then accept + use it. Standalone (Aliit phase). Heavy browser Midnight stack isolated here.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build && cp -r ../../contracts/private-credential-gateway/managed/keys ./dist/keys && cp -r ../../contracts/private-credential-gateway/managed/zkir ./dist/zkir",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mxrpl/private-credential-core": "*",
+    "@mxrpl/xrpl-client": "*",
+    "@mxrpl/gateway": "*",
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/dapp-connector-api": "^4.0.1",
+    "@midnight-ntwrk/ledger-v8": "^8.0.0",
+    "@midnight-ntwrk/compact-js": "^2.5.0",
+    "@midnight-ntwrk/midnight-js": "^4.0.4",
+    "@midnight-ntwrk/midnight-js-fetch-zk-config-provider": "^4.1.1",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "^4.0.4",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "^4.0.4",
+    "@midnight-ntwrk/midnight-js-network-id": "^4.0.4",
+    "@midnight-ntwrk/midnight-js-types": "^4.0.4",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "semver": "^7.6.0",
+    "xrpl": "4.6.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/semver": "^7.5.8",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "vite-plugin-top-level-await": "^1.4.4",
+    "vite-plugin-wasm": "^3.3.0"
+  }
+}

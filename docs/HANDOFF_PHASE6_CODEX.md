@@ -23,20 +23,20 @@ section, and the mainnet guard are **unchanged** from your green-lit review.
 - Please confirm: nothing on the issuance path can leak a secret into a log line. Tests assert the blob
   and nonce never appear in any emitted record (success and rejection paths).
 
-**Rate limiting:**
+**Rate limiting** *(updated after the audit):*
 - Injectable `RateLimiter` + `FixedWindowRateLimiter` (default **20 / 60 s per XRPL subject**).
-- Placed **after validation, before** the expensive sig-verify / indexer / XRPL-submit work — sheds load
-  early. Confirm the placement (it uses the validated `xrplAccount` as the key; invalid accounts fail
-  validation first). ⚠️ in-process — documented as needing a shared limiter for multi-process (same
-  caveat as the idempotency store).
+- **Post-auth** — runs *after* `verifyChallenge` proves account control, so a caller cannot burn another
+  subject's bucket (the pre-auth-DoS finding, fixed). Sheds load before the indexer query + submit. Not a
+  complete abuse defense — a deployment should add a pre-auth transport-layer limit (IP / API key). ⚠️
+  in-process (shared limiter needed for multi-process, same caveat as the idempotency store).
 
 **Pipeline wrapper:**
 - `issueCredential` is now wrapped in `try { … } catch (e) { log rejected; throw e }` with a
   `request.received` / `issuance.result` / `issuance.rejected` log trio. The wrapper **rethrows** — it
   changes no control flow and adds no new success path. Please confirm it can't swallow a failure.
 
-**Tests:** 3 new (`rate limit sheds…`, `logging…redacts the blob + nonce`, `rejection is logged with its
-code, blob still redacted`). 15 gateway tests / 80 repo-wide green.
+**Tests:** 4 new (`rate limit sheds…`, `logging…redacts the blob + nonce`, `rejection is logged…blob still
+redacted`, `throwing logger never affects issuance`). 16 gateway tests / 81 repo-wide green.
 
 ## B. Phase 6 docs — for an honesty/accuracy read
 `README.md` + `docs/{ARCHITECTURE,THREAT_MODEL,PRIVACY_BOUNDARY,DEMO,KNOWN_LIMITATIONS}.md`. They are

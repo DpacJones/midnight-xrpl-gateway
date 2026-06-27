@@ -5,6 +5,7 @@
 // NOTE: witnesses go to the wallet's prover (HOSTED with 1AM, LOCAL with Lace + local proof server) —
 // see docs/PRIVACY_BOUNDARY.md. A proverOverride forces a local proof server even with a hosted wallet.
 import { fromHex, toHex } from "@midnight-ntwrk/midnight-js-utils";
+import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
 import { ConnectedAPI, type InitialAPI } from "@midnight-ntwrk/dapp-connector-api";
 import { FetchZkConfigProvider } from "@midnight-ntwrk/midnight-js-fetch-zk-config-provider";
 import { httpClientProofProvider } from "@midnight-ntwrk/midnight-js-http-client-proof-provider";
@@ -79,6 +80,7 @@ export interface MidnightConnection {
  * locality even with a hosted-prover wallet like 1AM — otherwise the wallet's reported prover is used.
  */
 export async function connectMidnight(networkId: string, walletKey?: string, proverOverride?: string): Promise<MidnightConnection> {
+  setNetworkId(networkId as never); // MUST run before any wallet/contract op (matches the Node harness)
   const connectedAPI = await connectToWallet(networkId, walletKey);
   const config = await connectedAPI.getConfiguration();
   const shieldedAddresses = await connectedAPI.getShieldedAddresses();

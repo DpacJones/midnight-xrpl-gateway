@@ -28,8 +28,13 @@ not mark the request complete, so a retry can proceed.
   `consoleLogger` in a service). Logs an explicit allowlist of safe fields per request and on
   result/rejection — **never** the signed challenge blob or the request nonce.
 - **Rate limiting (§18):** injectable `RateLimiter` (default `FixedWindowRateLimiter`, 20 / 60 s per
-  XRPL subject) sheds over-limit issuance *before* the expensive checks. ⚠️ in-process; a
-  multi-process deployment needs a shared limiter (e.g. Redis), same caveat as the idempotency store.
+  XRPL subject). Applied **post-auth** — *after* the challenge cryptographically proves the caller
+  controls the subject account — so a caller cannot burn another subject's bucket (no spoofed-subject
+  DoS). It sheds load before the indexer query + XRPL submit. ⚠️ **Not a complete abuse defense:** a
+  deployment should also rate-limit **pre-auth** at the transport layer (by IP / API key), since
+  challenge verification runs before this. In-process; multi-process needs a shared limiter (e.g. Redis).
+- **Best-effort logging:** all logging goes through a `safeLog` wrapper that swallows logger errors —
+  a logger throw can never turn a successful (issued + persisted) issuance into an error.
 
 ## Boundaries (injected)
 - `MidnightReceiptProvider` — reads validated `approvedRequests` (the indexer in production; mock in tests).
@@ -41,9 +46,10 @@ not mark the request complete, so a retry can proceed.
   real atomic claim (DB unique constraint / advisory lock); run a single process or swap the store before scaling out.
 
 ## Tests
-`node --test` — 15 cases (mocked boundaries): happy path, missing/wrong-contract/wrong-policy/
+`node --test` — 16 cases (mocked boundaries): happy path, missing/wrong-contract/wrong-policy/
 wrong-epoch receipt, commitment mismatch, idempotency, concurrent-duplicate (issues once), existing credential,
-submit-failure-not-persisted, fixed-tx-type, mainnet guard, rate-limit shedding, log redaction (success + rejection).
+submit-failure-not-persisted, fixed-tx-type, mainnet guard, rate-limit shedding (post-auth), log redaction
+(success + rejection), best-effort logging (throwing logger doesn't affect issuance).
 
 > The real `MidnightReceiptProvider` (indexer query of `approvedRequests`) + a live end-to-end issue are
 > exercised in Phase 5 (`apps/e2e-harness`). The pipeline, fixed builder, idempotency, guards, structured

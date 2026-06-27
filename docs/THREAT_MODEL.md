@@ -47,8 +47,12 @@ is explicitly defended:
 - **Hard mainnet guard** — construction fails for non-testnet / mainnet-looking endpoints.
 - **Idempotent** — a per-key critical section + durable store; never issues twice, even under
   concurrent duplicates. A failed XRPL submit is *not* persisted, so retries are safe.
-- **Rate limited** — per-subject limiter sheds load before the expensive sig-verify / indexer / submit.
-- **Redacted logs** — only an allowlist of safe fields; never the signed blob or the request nonce.
+- **Rate limited (post-auth)** — the per-subject limiter runs *after* the challenge proves account
+  control, so a caller cannot burn another subject's bucket (no spoofed-subject DoS). It sheds load
+  before the indexer query + submit. It is **not** a complete abuse defense — a deployment should add a
+  pre-auth transport-layer limit (IP / API key), since challenge verification runs before this.
+- **Redacted, best-effort logs** — only an allowlist of safe fields; never the signed blob or the
+  request nonce; and logging errors can never affect issuance control flow (`safeLog` wrapper).
 
 ## Attacks considered (and why they fail)
 - *Forge an eligibility receipt for an account you don't control* → the challenge's signature +

@@ -2,7 +2,7 @@
 
 **For:** Codex (Architect/Auditor) · **From:** Claude (Builder) · **Date:** 2026-06-26
 **Scope:** the §18 gateway hardening (code) + the Phase 6 doc set. Phases 0–5 already audited green.
-Branch `master`, tip **`beedfdc`**, worktree clean, **80 unit tests green**.
+Branch `master`; this handoff is the bundle's current HEAD (the tip advances as audit fixes land — `2eb53e8` hardening + `beedfdc` docs are the substantive content). Worktree clean, **80+ unit tests green**.
 
 ## What's new since the Phase 5 audit (`1ae055b`)
 | Commit | What |

@@ -207,6 +207,18 @@ test("logging is structured and redacts the blob + nonce", async () => {
   assert.ok(dump.includes(req.requestCommitment) && dump.includes(req.xrplAccount), "safe fields are logged");
 });
 
+test("a throwing logger never affects issuance (logging is best-effort)", async () => {
+  const { req, commitmentHex } = validRequest();
+  const issuer = mockIssuer();
+  // logger throws AFTER the credential is issued + persisted — must not turn success into error
+  const throwingLogger = { log: (event: string) => { if (event === "issuance.result") throw new Error("logger boom"); } };
+  const g = createGateway(config(), { midnight: mockMidnight(new Set([commitmentHex])), issuer: issuer.issuer, store: new InMemoryIdempotencyStore(), logger: throwingLogger });
+  const res = await g.issueCredential(req);
+  assert.equal(res.status, "issued");
+  assert.equal(res.credentialId, "CREDID");
+  assert.equal(issuer.calls.issue, 1);
+});
+
 test("a rejection is logged with its code, blob still redacted", async () => {
   const { req } = validRequest();
   const events: { event: string; fields?: Record<string, unknown> }[] = [];

@@ -41,14 +41,18 @@ trustless bridge, custodian, or general relayer.
 Every step must pass, in order; any failure throws **before** anything is persisted:
 
 1. strict format/length validation (32-byte hex, valid r-address, `Uint<16>` epoch)
-2. **rate limit** per subject (sheds load before expensive work)
-3. allowlist: request's Midnight contract + policy must equal the configured ones
-4. **real** XRPL challenge signature verification (`xrpl.verifySignature` + `deriveAddress == Account`)
+2. allowlist: request's Midnight contract + policy must equal the configured ones
+3. **real** XRPL challenge signature verification (`xrpl.verifySignature` + `deriveAddress == Account`)
+4. **rate limit** per subject — **post-auth** (only after the challenge proves account control, so a
+   caller can't burn another subject's bucket); sheds load before the indexer query + submit
 5. recompute the request commitment, require exact equality
 6. confirm the commitment is in `approvedRequests` (validated indexer state)
 7. durable idempotency (per-key critical section — never issues twice)
 8. if the credential already exists, return deterministically
 9. build the **fixed** `CredentialCreate`, sign only with the configured issuer, submit, wait, persist
+
+All logging goes through a best-effort wrapper (a logger error can never affect issuance). A
+production deployment should add a **pre-auth** transport-layer rate limit (IP / API key) too.
 
 `MidnightReceiptProvider`, `XrplCredentialIssuer`, `IdempotencyStore`, `GatewayLogger`, and
 `RateLimiter` are injected — the §17.4 tests mock the external boundaries; `apps/e2e-harness` wires

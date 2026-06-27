@@ -35,6 +35,16 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
   const logger = deps.logger ?? nullLogger;
   const rateLimiter = deps.rateLimiter ?? new FixedWindowRateLimiter();
 
+  // Logging must NEVER affect issuance control flow — a logger throw (e.g. after a successful
+  // issue + persist) must not turn a success into an error. All logging goes through this.
+  function safeLog(event: string, fields?: Record<string, unknown>): void {
+    try {
+      logger.log(event, fields);
+    } catch {
+      /* swallow: logging is observational only */
+    }
+  }
+
   // Per-idempotency-key critical section (single-process). Serializes check-and-issue so two
   // concurrent duplicate requests can't both observe "no record" and both issue. NOTE: this is
   // IN-PROCESS only — running multiple gateway processes against the same store requires a real
@@ -52,7 +62,7 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
   }
 
   async function issueCredential(req: CredentialIssueRequest): Promise<IssueRecord> {
-    logger.log("request.received", safeRequestFields(req));
+    safeLog("request.received", safeRequestFields(req));
     try {
     // 1. strict format/length validation
     assertHex32(req.requestCommitment, "requestCommitment");
@@ -68,10 +78,6 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
       throw new GatewayError("validation:bad-account", "invalid xrplAccount");
     }
 
-    // 1b. rate limit per subject account — shed load before the expensive checks (sig verify,
-    //     indexer query, XRPL submit). Default 20 / 60 s; in-process (see README for multi-process).
-    if (!rateLimiter.tryAcquire(req.xrplAccount)) throw new GatewayError("rate-limited", "too many issuance requests for this account");
-
     // 2. allowlist: the one configured Midnight contract + policy
     if (req.midnightContractAddress !== config.midnight.contractAddress) throw new GatewayError("allowlist:contract", "midnightContractAddress not allowlisted");
     if (req.policyId.toLowerCase() !== config.midnight.policyId32Hex.toLowerCase()) throw new GatewayError("allowlist:policy", "policyId not allowlisted");
@@ -85,6 +91,13 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
       requestNonce: fromHex(req.requestNonce),
     });
     if (!v.ok) throw new GatewayError("challenge:invalid", `challenge verification failed: ${v.reasons.join("; ")}`);
+
+    // 4b. rate limit per subject — POST-AUTH. The challenge above cryptographically proved the caller
+    //     controls req.xrplAccount, so a caller cannot burn another subject's bucket (no spoofed-subject
+    //     DoS). Sheds load before the indexer query + XRPL submit. Default 20 / 60 s; in-process.
+    //     NOTE: this is NOT a complete abuse defense — a deployment should ALSO rate-limit pre-auth at
+    //     the transport layer (by caller IP / API key), since challenge verification runs before this.
+    if (!rateLimiter.tryAcquire(req.xrplAccount)) throw new GatewayError("rate-limited", "too many issuance requests for this account");
 
     // 5-6. recompute the request commitment from the AccountID + nonce + policy + epoch, require equality
     const rc = toHex(recomputeCommitment({ xrplAccountId32: accountId32, requestNonce: fromHex(req.requestNonce), policyEpoch: req.policyEpoch, policyId32: fromHex(req.policyId) }));
@@ -123,11 +136,11 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
       await deps.store.put(key, rec);
       return rec;
     });
-    logger.log("issuance.result", { ...safeRequestFields(req), status: result.status, credentialId: result.credentialId, createHash: result.createHash });
+    safeLog("issuance.result", { ...safeRequestFields(req), status: result.status, credentialId: result.credentialId, createHash: result.createHash });
     return result;
     } catch (e) {
       const code = e instanceof GatewayError ? e.code : "error";
-      logger.log("issuance.rejected", { ...safeRequestFields(req), code, message: e instanceof Error ? e.message : String(e) });
+      safeLog("issuance.rejected", { ...safeRequestFields(req), code, message: e instanceof Error ? e.message : String(e) });
       throw e;
     }
   }

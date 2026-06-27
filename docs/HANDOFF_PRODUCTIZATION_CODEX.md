@@ -17,6 +17,20 @@ advances as audit fixes land), worktree clean, **81 unit tests green**; both new
   `!**/.env.example`); body-cap trip now returns **413 payload-too-large** (not 400); `tsconfig.tsbuildinfo`
   gitignored.
 
+## Audit-round-2 fix (dApp build reproducibility)
+Your round-2 blocker: the build copied gitignored ZK assets the documented compile path didn't produce **on
+Windows**. Root cause: `npm run compile` is the full `compact compile +0.31.1`, which produces `managed/keys`
++ `managed/zkir` **only where the Compact proving backend exists (WSL/Linux)** — Windows emits only
+`managed/contract`. This is the same toolchain constraint as compile/prove/e2e. Resolution (your option 2 —
+explicit prerequisite + wired into docs):
+- `copy-assets.mjs` now **checks for the assets and exits with actionable guidance** (run compile first) instead
+  of ENOENT.
+- New **`apps/dapp/README.md`** documents the `compile → build` prerequisite + the WSL/Linux requirement.
+- **Verified end-to-end in WSL:** `npm run compile -w …gateway-contract` (→ all 4 keys + zkir) then
+  `npm run build -w @mxrpl/dapp` (→ WASM bundle + `dist/{keys,zkir}`). Reproducible in the supported env.
+- Not committing the 37 MB prover key (keeps the repo + audit bundle lean); to deploy, build in WSL and publish
+  the static `dist/`, or compile in a Linux CI with the toolchain.
+
 ## Commits since `62647e6`
 | Commit | What | Audit weight |
 |---|---|---|
@@ -67,8 +81,13 @@ deep security pass here, since it's not deployed and has no key material.
 - `src/lib/gateway-client.ts` — typed `POST /issue-credential` client.
 - `src/App.tsx` — minimal connect-1AM + health shell.
 
-**Status:** typechecks clean; **NOT yet** vite-built (the Midnight WASM bundle is the known-finicky step) or
-runtime-validated. Not security-sensitive, but flag any unsound assumption in the connection layer.
+**Status:** typechecks clean **and vite-builds end-to-end in WSL** — verified `compile → build`: the
+Midnight WASM bundle compiles (onchain-runtime + ledger + app) and the portable copy lands keys+zkir in
+`dist/`. **Build prerequisite:** the contract must be compiled first (`npm run compile -w …gateway-contract`),
+which needs the Compact toolchain — **WSL/Linux only**, same as compile/prove/e2e across the repo; the keys
+(~37 MB prover) are gitignored, not committed. On bare Windows the build can't generate the keys (no proving
+backend) — `copy-assets.mjs` now fails with clear guidance instead of a raw ENOENT. **Not** yet runtime-validated
+(needs 1AM + a deployed contract). Not security-sensitive; flag any unsound assumption in the connection layer.
 
 ## Verification
 `npm ci && node --test` → 81 pass. `npm run typecheck -w @mxrpl/gateway-service` and `-w @mxrpl/dapp` →

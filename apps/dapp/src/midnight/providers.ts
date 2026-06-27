@@ -1,7 +1,9 @@
 // The Midnight browser-provider connection layer. Adapted from the canonical bboard-ui
 // (BrowserDeployedBoardManager, Apache-2.0) — the spike-confirmed pattern (docs/SPIKE_BROWSER_PROVING.md):
-// the WALLET (1AM) supplies the prover + indexer URIs; the proving keys are fetched as static assets;
-// witnesses never leave the browser/wallet.
+// the WALLET (1AM or Lace) supplies the prover + indexer URIs; the proving keys are fetched as static
+// assets. Multi-wallet: scans window.midnight.* for any v4 connector and lets the caller pick one.
+// NOTE: witnesses go to the wallet's prover (HOSTED with 1AM, LOCAL with Lace + local proof server) —
+// see docs/PRIVACY_BOUNDARY.md. A proverOverride forces a local proof server even with a hosted wallet.
 import { fromHex, toHex } from "@midnight-ntwrk/midnight-js-utils";
 import { ConnectedAPI, type InitialAPI } from "@midnight-ntwrk/dapp-connector-api";
 import { FetchZkConfigProvider } from "@midnight-ntwrk/midnight-js-fetch-zk-config-provider";
@@ -22,36 +24,71 @@ import { zkConfigPath, type GatewayCircuitKeys, type GatewayPrivateState, type G
 
 const COMPATIBLE_CONNECTOR_API_VERSION = "4.x"; // 1AM ships DApp Connector v4 (window.midnight typed by the connector pkg)
 
-function getFirstCompatibleWallet(): InitialAPI | undefined {
-  if (!window.midnight) return undefined;
-  return Object.values(window.midnight).find((w) => semver.satisfies(w.apiVersion, COMPATIBLE_CONNECTOR_API_VERSION));
+export interface WalletInfo {
+  /** the window.midnight key (e.g. "mnLace" / 1AM's key) — pass back to connectMidnight to choose it */
+  readonly key: string;
+  readonly name: string;
+  readonly apiVersion: string;
 }
 
-/** Poll briefly for an injected, compatible Midnight wallet (1AM/Lace) and connect. */
-async function connectToWallet(networkId: string): Promise<ConnectedAPI> {
+/** All injected, v4-compatible Midnight wallets (1AM, Lace, …). Empty if none installed yet. */
+export function listWallets(): WalletInfo[] {
+  if (!window.midnight) return [];
+  return Object.entries(window.midnight)
+    .filter(([, w]) => !!w && typeof w === "object" && "apiVersion" in w && semver.satisfies((w as InitialAPI).apiVersion, COMPATIBLE_CONNECTOR_API_VERSION))
+    .map(([key, w]) => ({ key, name: (w as InitialAPI).name ?? key, apiVersion: (w as InitialAPI).apiVersion }));
+}
+
+/** "local" if the prover runs on the user's machine (witnesses stay local), else "hosted". */
+export function classifyProver(proverServerUri: string): "local" | "hosted" {
+  return /\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(proverServerUri) ? "local" : "hosted";
+}
+
+/** Poll briefly for the chosen wallet (or the first compatible one) and connect. */
+async function connectToWallet(networkId: string, walletKey?: string): Promise<ConnectedAPI> {
+  const pick = (): InitialAPI | undefined => {
+    if (!window.midnight) return undefined;
+    if (walletKey) {
+      const w = window.midnight[walletKey] as InitialAPI | undefined;
+      return w && semver.satisfies(w.apiVersion, COMPATIBLE_CONNECTOR_API_VERSION) ? w : undefined;
+    }
+    return Object.values(window.midnight).find((w) => semver.satisfies(w.apiVersion, COMPATIBLE_CONNECTOR_API_VERSION));
+  };
   const deadline = 5000;
   const start = performance.now();
   for (;;) {
-    const initial = getFirstCompatibleWallet();
+    const initial = pick();
     if (initial) return initial.connect(networkId);
     if (performance.now() - start > deadline) {
-      throw new Error("No compatible Midnight wallet found. Is the 1AM extension installed + enabled?");
+      throw new Error(`No compatible Midnight wallet found${walletKey ? ` for "${walletKey}"` : ""}. Is 1AM or Lace installed + enabled?`);
     }
     await new Promise((r) => setTimeout(r, 150));
   }
 }
 
-/** Connect 1AM and assemble the browser provider set for the gateway contract. */
-export async function connectMidnight(networkId: string): Promise<{ providers: GatewayProviders; connectedAPI: ConnectedAPI }> {
-  const connectedAPI = await connectToWallet(networkId);
+export interface MidnightConnection {
+  readonly providers: GatewayProviders;
+  readonly connectedAPI: ConnectedAPI;
+  /** the prover the connected wallet reported + whether it's local (witnesses stay) or hosted. */
+  readonly prover: { uri: string; kind: "local" | "hosted" };
+}
+
+/**
+ * Connect the chosen wallet (1AM/Lace via `walletKey`) and assemble the browser provider set.
+ * `proverOverride` forces a specific proof server (e.g. `http://localhost:6300`) for full proving
+ * locality even with a hosted-prover wallet like 1AM — otherwise the wallet's reported prover is used.
+ */
+export async function connectMidnight(networkId: string, walletKey?: string, proverOverride?: string): Promise<MidnightConnection> {
+  const connectedAPI = await connectToWallet(networkId, walletKey);
   const config = await connectedAPI.getConfiguration();
   const shieldedAddresses = await connectedAPI.getShieldedAddresses();
   const keyMaterialProvider = new FetchZkConfigProvider<GatewayCircuitKeys>(zkConfigPath, fetch.bind(window));
+  const proverUri = proverOverride ?? config.proverServerUri!;
 
   const providers: GatewayProviders = {
     privateStateProvider: inMemoryPrivateStateProvider<typeof GatewayPrivateStateId, GatewayPrivateState>(),
     zkConfigProvider: keyMaterialProvider,
-    proofProvider: httpClientProofProvider(config.proverServerUri!, keyMaterialProvider),
+    proofProvider: httpClientProofProvider(proverUri, keyMaterialProvider),
     publicDataProvider: indexerPublicDataProvider(config.indexerUri, config.indexerWsUri),
     walletProvider: {
       getCoinPublicKey: () => shieldedAddresses.shieldedCoinPublicKey,
@@ -69,5 +106,5 @@ export async function connectMidnight(networkId: string): Promise<{ providers: G
       },
     },
   };
-  return { providers, connectedAPI };
+  return { providers, connectedAPI, prover: { uri: proverUri, kind: classifyProver(proverUri) } };
 }

@@ -20,15 +20,18 @@ browser providers. Adapted to our contract, the dApp needs:
 
 The wallet is found wallet-agnostically: scan `window.midnight.*` for a connector at `apiVersion 4.x`
 (`@midnight-ntwrk/dapp-connector-api`), `connect(networkId)`, then read `getConfiguration()` for the
-prover/indexer URIs. **Witnesses never leave the browser/wallet** — only the proof + public state go on
-chain, exactly the privacy model in [`PRIVACY_BOUNDARY.md`](PRIVACY_BOUNDARY.md).
+prover/indexer URIs. The witnesses go to the **prover** (hosted, with 1AM — see below); only the proof +
+public state go on chain. See [`PRIVACY_BOUNDARY.md`](PRIVACY_BOUNDARY.md) for who sees the witnesses.
 
 ## 1AM specifically (Dennis's wallet)
 - **DApp Connector v4** day-one — satisfies the `apiVersion 4.x` requirement; the provider wiring above
   works unchanged.
-- **Bundles its own in-browser ZK prover** ("Proof Station SDK", in-browser proving) — *no proof server
-  to deploy or host*, and proving stays local. This is strictly better than Lace for our purpose (a
-  Midnight forum thread notes Lace lacks the proving-provider API).
+- **Proving is HOSTED, not local (confirmed live 2026-06-27).** `getConfiguration()` returns
+  `proverServerUri: https://api-preview.1am.xyz` — 1AM's hosted prover. Convenient (*no proof server for
+  you to run*), but the dApp sends the unproven tx (incl. the private witnesses) there, so **1AM's prover
+  sees the witnesses** (they never go on-chain). 1AM's "in-browser proving" marketing oversells this. For
+  **fully-local** proving (witnesses stay on the user's machine), use **Lace + a local proof server**
+  (Settings » Midnight » Local `http://localhost:6300`) or run your own.
 - Available on Chrome, Firefox, iOS, Android.
 
 > Minor build-time detail to confirm against the installed connector version: the proving handoff may

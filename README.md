@@ -11,8 +11,9 @@ again after the issuer revokes it.
 
 > This is **not** a trustless bridge and **not** anonymous KYC. Midnight verifies the private
 > policy; the gateway is a *trusted* XRPL credential issuer; **XRPL does not verify the Midnight
-> proof** — it enforces the credential the gateway issued. Your private attributes stay local;
-> your XRPL account and credential are public. See [`docs/PRIVACY_BOUNDARY.md`](docs/PRIVACY_BOUNDARY.md).
+> proof** — it enforces the credential the gateway issued. Your private attributes never go on-chain
+> and the gateway never sees them (though a *hosted* prover does — see below); your XRPL account and
+> credential are public. See [`docs/PRIVACY_BOUNDARY.md`](docs/PRIVACY_BOUNDARY.md).
 
 ## ✅ Working result (verified end-to-end on live infrastructure)
 

@@ -21,6 +21,10 @@ all stated so the trust assumptions are explicit (the project's honesty posture)
 7. **Cross-chain correlation is by design** — timing + the `CredentialCreate` memo (the request
    commitment) link the public XRPL credential to the opaque Midnight receipt. A UI must disclose this
    and must not claim anonymity. See `PRIVACY_BOUNDARY.md`.
+7b. **Hosted proving sees the witnesses.** ZK proving needs the private witnesses as input; with a
+   *hosted* prover (this dApp connects via 1AM, whose prover is `api-preview.1am.xyz` on Preview), the
+   prover operator sees them during proof generation. They never go on-chain. For full locality, prove
+   against a *local* proof server (Lace » Settings » Midnight » Local, or run your own).
 
 ## Operational / scale
 8. **Single-process** idempotency store (`FileIdempotencyStore`) and rate limiter — correct within one

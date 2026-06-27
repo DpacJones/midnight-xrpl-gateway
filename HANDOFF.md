@@ -1,13 +1,14 @@
 # HANDOFF — current Codex review prompt
 
-The single, always-current prompt to hand Codex (the Auditor) for review. Keep the **tip** and the
-**detail-doc link** below updated as work lands; the per-phase detail lives in `docs/HANDOFF_*_CODEX.md`.
+The single, always-current prompt to hand Codex (the Auditor) for review. Codex reviews the **HEAD of the
+refreshed bundle**; doc-only commits (like edits to this file) don't change the review surface. Update the
+**detail-doc link** + the scope below as work lands; per-phase detail lives in `docs/HANDOFF_*_CODEX.md`.
 Audit drop (for Codex): `_codex-audit/midnight-xrpl-gateway.bundle` + the `mxg-audit/` checkout +
 `origin/master` (private remote `github.com/DpacJones/midnight-xrpl-gateway`).
 
 ---
 
-**Codex — re-review the midnight-xrpl-gateway productization (gateway service + dApp), tip `4cf525c`.**
+**Codex — re-review the midnight-xrpl-gateway productization (gateway service + dApp), at the bundle's current HEAD** (latest code = `4cf525c`; doc-only commits after don't change the review surface).
 
 Audit drop refreshed: `_codex-audit\midnight-xrpl-gateway.bundle` + `mxg-audit\` checkout + `origin/master`.
 Full details in **`docs/HANDOFF_PRODUCTIZATION_CODEX.md`**.

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Midnight × XRPL — Private Credential Gateway</title>
+<style>
+  :root {
+    --bg: #0a0a14; --panel: #14141f; --line: #262638;
+    --text: #e8e8f0; --muted: #9090a8;
+    --midnight: #8b7cf6; --xrpl: #2d9cdb; --ok: #2ecc71; --no: #e74c3c; --amber: #e8c34a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5; overflow: hidden;
+  }
+  code, .mono { font-family: ui-monospace, "Cascadia Code", "Consolas", monospace; }
+
+  .deck { height: 100vh; width: 100vw; position: relative; }
+  .slide {
+    position: absolute; inset: 0; display: none;
+    flex-direction: column; justify-content: center;
+    padding: 6vh 9vw; opacity: 0; transition: opacity .25s ease;
+  }
+  .slide.active { display: flex; opacity: 1; }
+  .slide h1 { font-size: 3.2rem; line-height: 1.1; letter-spacing: -1px; margin-bottom: 1rem; }
+  .slide h2 { font-size: 2.1rem; letter-spacing: -.5px; margin-bottom: 1.6rem; }
+  .slide h2 .num {
+    display: inline-grid; place-items: center; width: 2.2rem; height: 2.2rem; margin-right: .8rem;
+    font-size: 1.1rem; border-radius: 50%; background: var(--panel); border: 1px solid var(--line);
+    color: var(--midnight); vertical-align: middle;
+  }
+  .lead { font-size: 1.5rem; color: var(--muted); max-width: 60ch; }
+  .big { font-size: 1.9rem; line-height: 1.4; max-width: 24ch; }
+  .tag { color: var(--midnight); font-weight: 600; }
+  .tag-x { color: var(--xrpl); font-weight: 600; }
+  .kicker { text-transform: uppercase; letter-spacing: 3px; font-size: .8rem; color: var(--muted); margin-bottom: 1.4rem; }
+
+  ul.clean { list-style: none; display: grid; gap: 1rem; max-width: 70ch; }
+  ul.clean li { font-size: 1.35rem; padding-left: 1.8rem; position: relative; }
+  ul.clean li::before { content: "▸"; position: absolute; left: 0; color: var(--midnight); }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4rem; margin-top: 1rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.6rem; }
+  .card h3 { font-size: 1.25rem; margin-bottom: .6rem; }
+  .card p { color: var(--muted); font-size: 1.02rem; }
+  .card.m { border-top: 3px solid var(--midnight); }
+  .card.g { border-top: 3px solid var(--amber); }
+  .card.x { border-top: 3px solid var(--xrpl); }
+
+  .flow { display: grid; gap: .7rem; max-width: 80ch; }
+  .step { display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: center;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1.1rem; }
+  .step .n { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 50%;
+    font-size: .95rem; font-weight: 700; }
+  .step .t { font-size: 1.12rem; }
+  .step .t small { color: var(--muted); }
+  .lane-m .n { background: rgba(139,124,246,.18); color: var(--midnight); }
+  .lane-g .n { background: rgba(232,195,74,.18); color: var(--amber); }
+  .lane-x .n { background: rgba(45,156,219,.18); color: var(--xrpl); }
+
+  table { border-collapse: collapse; width: 100%; max-width: 80ch; font-size: 1.2rem; margin-top: .5rem; }
+  th, td { text-align: left; padding: .85rem 1rem; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: .95rem; text-transform: uppercase; letter-spacing: 1px; }
+  .col-priv { color: var(--midnight); }
+  .col-pub { color: var(--xrpl); }
+
+  .term { background: #07070e; border: 1px solid var(--line); border-radius: 12px; padding: 1.6rem 1.8rem;
+    font-family: ui-monospace, monospace; font-size: 1.25rem; max-width: 70ch; }
+  .term .row { display: flex; justify-content: space-between; padding: .35rem 0; }
+  .term .ok { color: var(--ok); } .term .no { color: var(--no); } .term .mut { color: var(--muted); }
+  .term .hd { color: var(--midnight); margin-bottom: .8rem; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase; }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 90ch; }
+  .panelbox { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.5rem 1.7rem; }
+  .panelbox h3 { font-size: 1.15rem; margin-bottom: .8rem; }
+  .panelbox.trustless h3 { color: var(--ok); } .panelbox.trusted h3 { color: var(--amber); }
+  .panelbox p { color: var(--muted); font-size: 1.05rem; }
+
+  .pills { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.2rem; }
+  .pill { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: .5rem 1.1rem; font-size: 1.05rem; }
+
+  .status { display: grid; gap: .8rem; max-width: 70ch; font-size: 1.3rem; }
+  .status .done { color: var(--ok); } .status .next { color: var(--amber); }
+
+  footer { position: absolute; bottom: 2.2vh; left: 9vw; right: 9vw; display: flex; justify-content: space-between;
+    align-items: center; color: var(--muted); font-size: .85rem; }
+  .dots { display: flex; gap: .4rem; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); cursor: pointer; }
+  .dot.on { background: var(--midnight); }
+  .progress { position: absolute; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--midnight), var(--xrpl)); transition: width .25s; }
+  .hint { position: absolute; bottom: 2.2vh; left: 50%; transform: translateX(-50%); color: var(--line); font-size: .8rem; }
+  @media print { .slide { display: flex !important; opacity: 1 !important; position: relative; page-break-after: always; height: 100vh; } footer, .hint, .progress { display: none; } }
+</style>
+</head>
+<body>
+<div class="progress" id="prog"></div>
+<div class="deck" id="deck">
+
+  <!-- 1 -->
+  <section class="slide active">
+    <div class="kicker">Atlantis · Reference dApp</div>
+    <h1><span class="tag">Midnight</span> × <span class="tag-x">XRPL</span><br/>Private Credential Gateway</h1>
+    <p class="lead">Prove you qualify — <em>privately</em>. Let the XRP Ledger enforce it — <em>natively</em>.</p>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide">
+    <div class="kicker">The problem</div>
+    <h2>Compliance vs. privacy</h2>
+    <p class="big">To access gated things you must <span class="tag">prove you qualify</span> — but proving usually means <span class="tag-x">handing over your identity</span>.</p>
+    <ul class="clean" style="margin-top:2rem">
+      <li>KYC-gated pools want proof you're verified — and collect your documents.</li>
+      <li>Age-gated commerce wants your birthday — and stores it.</li>
+      <li>Token-holder drops want your wallet — and dox it publicly.</li>
+    </ul>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide">
+    <div class="kicker">The idea</div>
+    <h2>Prove privately → enforce on-ledger</h2>
+    <p class="big">A zero-knowledge proof on <span class="tag">Midnight</span> becomes a native credential on <span class="tag-x">XRPL</span> — and the ledger itself does the gating.</p>
+    <p class="lead" style="margin-top:1.6rem">No middleman holds your data. No server decides each payment. <strong>Private eligibility, public enforcement.</strong></p>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide">
+    <div class="kicker">Architecture</div>
+    <h2>Three pieces</h2>
+    <div class="cards">
+      <div class="card m"><h3>① Midnight contract</h3><p>The privacy layer. Holds a Merkle tree of valid credentials + a policy (e.g. "adult, in CA"). Verifies the ZK proof.</p></div>
+      <div class="card g"><h3>② Gateway service</h3><p>The trusted issuer — a Certificate Authority. Holds an XRPL issuer key. <strong>Non-custodial: never touches user funds.</strong></p></div>
+      <div class="card x"><h3>③ XRPL</h3><p>The enforcement layer. Native Credentials + Deposit Authorization (live on mainnet). The ledger blocks or allows.</p></div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
+    <div class="kicker">How it works</div>
+    <h2>The flow</h2>
+    <div class="flow">
+      <div class="step lane-m"><div class="n">1</div><div class="t">User holds a private credential <small>— issued off-chain, its commitment is a leaf in the Midnight tree</small></div></div>
+      <div class="step lane-m"><div class="n">2</div><div class="t">Prove eligibility in zero-knowledge <small>— membership + policy + binds to XRPL address; burns a nullifier (no reuse). Private data never goes on-chain.</small></div></div>
+      <div class="step lane-x"><div class="n">3</div><div class="t">Sign an XRPL challenge <small>— proves the user controls the XRPL account being credentialed</small></div></div>
+      <div class="step lane-g"><div class="n">4</div><div class="t">Gateway verifies proof + signature → issues <code>CredentialCreate</code></div></div>
+      <div class="step lane-x"><div class="n">5</div><div class="t">User submits <code>CredentialAccept</code> <small>— credential is now live on their account</small></div></div>
+      <div class="step lane-x"><div class="n">6</div><div class="t">Gated account enforces it <small>— Deposit Auth + credential preauth on every payment</small></div></div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide">
+    <div class="kicker">The privacy property</div>
+    <h2>What's private vs. public</h2>
+    <table>
+      <tr><th class="col-priv">Private — never on-chain</th><th class="col-pub">Public — on-chain</th></tr>
+      <tr><td>Birthday, ID, raw KYC data</td><td>"A valid proof exists"</td></tr>
+      <tr><td><em>Which</em> credential / leaf you hold</td><td>The XRPL credential (a badge)</td></tr>
+      <tr><td>The underlying eligibility data</td><td>The gated payment result</td></tr>
+    </table>
+    <p class="lead" style="margin-top:1.6rem; font-size:1.2rem">The gateway sees your address + that a proof exists — <strong>not your data</strong>. XRPL sees the badge — <strong>not why it was granted</strong>.</p>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide">
+    <div class="kicker">The money slide</div>
+    <h2>Verified live — browser, real chains</h2>
+    <div class="term">
+      <div class="hd">Midnight Preprod + XRPL testnet · via 1AM</div>
+      <div class="row"><span class="mut">prove eligibility</span><span class="ok">✓ block 1425151</span></div>
+      <div class="row"><span class="mut">gateway issues credential</span><span class="ok">✓ CredentialCreate</span></div>
+      <div class="row"><span class="mut">user accepts</span><span class="ok">✓ tesSUCCESS</span></div>
+      <div class="row" style="border-top:1px solid var(--line); margin-top:.6rem; padding-top:.8rem"><span>payment <b>WITHOUT</b> credential</span><span class="no">tecNO_PERMISSION — blocked</span></div>
+      <div class="row"><span>payment <b>WITH</b> credential</span><span class="ok">tesSUCCESS — allowed</span></div>
+    </div>
+    <p class="lead" style="margin-top:1.4rem; font-size:1.15rem">Same payment. Blocked one way, allowed the other. <strong>The ledger enforced it</strong> — not us.</p>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide">
+    <div class="kicker">Trust model</div>
+    <h2>What you trust — and don't</h2>
+    <div class="two">
+      <div class="panelbox trustless"><h3>✓ Trustless</h3><p>The Midnight proof (the chain verifies it) and the XRPL enforcement (the ledger verifies the credential). No one can fake either.</p></div>
+      <div class="panelbox trusted"><h3>⚖ Trusted (like a CA)</h3><p>The gateway, to only issue for valid proofs. <strong>Risk is false-issuance, not theft</strong> — it never holds user funds.</p></div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide">
+    <div class="kicker">Why it matters</div>
+    <h2>A new primitive</h2>
+    <p class="big">Credentials on XRPL exist. Private proofs on Midnight exist. <span class="tag">Wiring them together</span> — prove privately, enforce on-ledger — is the new part.</p>
+    <div class="pills">
+      <span class="pill">Compliant-but-private pools</span>
+      <span class="pill">KYC-gated payments</span>
+      <span class="pill">Age-gated commerce</span>
+      <span class="pill">Token-holder drops (no doxxing)</span>
+      <span class="pill">Permissioned DEX / AMM domains</span>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide">
+    <div class="kicker">Status</div>
+    <h2>Where it stands</h2>
+    <div class="status">
+      <div class="done">✓ Full flow verified end-to-end, live, in a browser</div>
+      <div class="done">✓ Contract deployed on Midnight Preprod · gateway wired + running</div>
+      <div class="done">✓ Nullifier replay protection demonstrated</div>
+      <div class="done">✓ Core pipeline Codex-audited green</div>
+      <div class="next">→ Codex review of the full XRPL flow (in progress)</div>
+      <div class="next">→ Aliit submission · then productize into x-multi (mainnet)</div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide">
+    <h1>Private eligibility.<br/><span class="tag-x">Public enforcement.</span></h1>
+    <p class="lead" style="margin-top:1rem">Midnight × XRPL Private Credential Gateway</p>
+    <p class="lead mono" style="margin-top:2rem; font-size:1rem; color:var(--line)">Atlantis · Dennis Zarelli (Dpac Jones)</p>
+  </section>
+
+</div>
+
+<footer>
+  <div>Midnight × XRPL — Private Credential Gateway</div>
+  <div class="dots" id="dots"></div>
+  <div><span id="cur">1</span> / <span id="tot">11</span></div>
+</footer>
+<div class="hint">← → or click to navigate · press P to print/PDF</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const dotsWrap = document.getElementById('dots');
+  let i = 0;
+  document.getElementById('tot').textContent = slides.length;
+  slides.forEach((_, k) => {
+    const d = document.createElement('div'); d.className = 'dot' + (k===0?' on':'');
+    d.onclick = (e) => { e.stopPropagation(); go(k); }; dotsWrap.appendChild(d);
+  });
+  const dots = Array.from(document.querySelectorAll('.dot'));
+  function go(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('active', k === i));
+    dots.forEach((d, k) => d.classList.toggle('on', k === i));
+    document.getElementById('cur').textContent = i + 1;
+    document.getElementById('prog').style.width = ((i + 1) / slides.length * 100) + '%';
+  }
+  function next() { go(i + 1); } function prev() { go(i - 1); }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') next();
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') prev();
+    else if (e.key === 'Home') go(0); else if (e.key === 'End') go(slides.length - 1);
+    else if (e.key.toLowerCase() === 'p') window.print();
+  });
+  document.getElementById('deck').addEventListener('click', (e) => {
+    if (e.clientX > window.innerWidth / 2) next(); else prev();
+  });
+  go(0);
+</script>
+</body>
+</html>

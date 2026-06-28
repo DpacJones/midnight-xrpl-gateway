@@ -35,6 +35,13 @@ export function parseCredential(json: string): DemoCredential {
   if (!c.holderSecretHex || !Array.isArray(c.merkleSiblingsHex)) {
     throw new Error("not a credential bundle (missing holderSecretHex / merkleSiblingsHex)");
   }
+  // Guard against a truncated paste — the circuit needs EXACTLY 16 siblings + flags, and a short paste
+  // otherwise fails cryptically deep in circuit execution ("expected Vector<16, Bytes<32>>").
+  if (c.merkleSiblingsHex.length !== 16 || c.merkleGoesLeft?.length !== 16) {
+    throw new Error(
+      `credential must have exactly 16 merkleSiblingsHex + 16 merkleGoesLeft, got ${c.merkleSiblingsHex.length}/${c.merkleGoesLeft?.length} — looks like a truncated paste`,
+    );
+  }
   return c;
 }
 

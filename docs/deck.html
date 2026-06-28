@@ -6,233 +6,358 @@
 <title>Midnight × XRPL — Private Credential Gateway</title>
 <style>
   :root {
-    --bg: #0a0a14; --panel: #14141f; --line: #262638;
-    --text: #e8e8f0; --muted: #9090a8;
-    --midnight: #8b7cf6; --xrpl: #2d9cdb; --ok: #2ecc71; --no: #e74c3c; --amber: #e8c34a;
+    --bg: #06060e; --panel: rgba(22,22,34,.66); --line: rgba(120,120,170,.22);
+    --text: #edeef6; --muted: #9c9cb8;
+    --midnight: #9b8cff; --midnight2: #6d5fd6; --xrpl: #3aabf0; --xrpl2: #1e7bb8;
+    --ok: #34d27b; --no: #ff5d52; --amber: #f0cf5a;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body {
     background: var(--bg); color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    line-height: 1.5; overflow: hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.5; overflow: hidden;
   }
   code, .mono { font-family: ui-monospace, "Cascadia Code", "Consolas", monospace; }
 
-  .deck { height: 100vh; width: 100vw; position: relative; }
-  .slide {
-    position: absolute; inset: 0; display: none;
-    flex-direction: column; justify-content: center;
-    padding: 6vh 9vw; opacity: 0; transition: opacity .25s ease;
-  }
-  .slide.active { display: flex; opacity: 1; }
-  .slide h1 { font-size: 3.2rem; line-height: 1.1; letter-spacing: -1px; margin-bottom: 1rem; }
-  .slide h2 { font-size: 2.1rem; letter-spacing: -.5px; margin-bottom: 1.6rem; }
-  .slide h2 .num {
-    display: inline-grid; place-items: center; width: 2.2rem; height: 2.2rem; margin-right: .8rem;
-    font-size: 1.1rem; border-radius: 50%; background: var(--panel); border: 1px solid var(--line);
-    color: var(--midnight); vertical-align: middle;
-  }
-  .lead { font-size: 1.5rem; color: var(--muted); max-width: 60ch; }
-  .big { font-size: 1.9rem; line-height: 1.4; max-width: 24ch; }
-  .tag { color: var(--midnight); font-weight: 600; }
-  .tag-x { color: var(--xrpl); font-weight: 600; }
-  .kicker { text-transform: uppercase; letter-spacing: 3px; font-size: .8rem; color: var(--muted); margin-bottom: 1.4rem; }
+  /* ---- atmospheric background ---- */
+  .bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+  .orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .5; }
+  .orb.a { width: 50vw; height: 50vw; left: -12vw; top: -16vw; background: radial-gradient(circle, #5b4bd6, transparent 70%); }
+  .orb.b { width: 46vw; height: 46vw; right: -12vw; bottom: -16vw; background: radial-gradient(circle, #146a9e, transparent 70%); }
+  .orb.c { width: 30vw; height: 30vw; left: 40vw; top: 50vw; background: radial-gradient(circle, #3a2f80, transparent 70%); opacity:.35; }
+  .stars { position: absolute; inset: -50%; background-image:
+      radial-gradient(1px 1px at 20% 30%, #fff8, transparent),
+      radial-gradient(1px 1px at 70% 60%, #fff6, transparent),
+      radial-gradient(1px 1px at 40% 80%, #fff7, transparent),
+      radial-gradient(1px 1px at 85% 25%, #fff5, transparent),
+      radial-gradient(1px 1px at 55% 15%, #fff6, transparent),
+      radial-gradient(1px 1px at 10% 70%, #fff5, transparent);
+    background-size: 600px 600px; animation: drift 90s linear infinite; opacity:.5; }
+  .grid { position:absolute; inset:0; background-image:
+      linear-gradient(rgba(140,140,200,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(140,140,200,.05) 1px, transparent 1px);
+    background-size: 46px 46px; mask-image: radial-gradient(circle at 50% 45%, #000 30%, transparent 80%); }
+  @keyframes drift { from { transform: translate(0,0); } to { transform: translate(-300px,-200px); } }
 
-  ul.clean { list-style: none; display: grid; gap: 1rem; max-width: 70ch; }
-  ul.clean li { font-size: 1.35rem; padding-left: 1.8rem; position: relative; }
-  ul.clean li::before { content: "▸"; position: absolute; left: 0; color: var(--midnight); }
+  .deck { position: relative; z-index: 1; height: 100vh; width: 100vw; }
+  .slide { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center;
+    padding: 6vh 8vw; opacity: 0; transform: translateY(14px); transition: opacity .35s ease, transform .35s ease; }
+  .slide.active { display: flex; opacity: 1; transform: none; }
 
-  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4rem; margin-top: 1rem; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.6rem; }
-  .card h3 { font-size: 1.25rem; margin-bottom: .6rem; }
-  .card p { color: var(--muted); font-size: 1.02rem; }
-  .card.m { border-top: 3px solid var(--midnight); }
-  .card.g { border-top: 3px solid var(--amber); }
-  .card.x { border-top: 3px solid var(--xrpl); }
+  h1 { font-size: clamp(2.4rem, 5vw, 3.6rem); line-height: 1.08; letter-spacing: -1.5px; }
+  h2 { font-size: clamp(1.7rem, 3.2vw, 2.3rem); letter-spacing: -.5px; margin-bottom: 1.4rem; }
+  .gtext { background: linear-gradient(120deg, var(--midnight), var(--xrpl)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .tag { color: var(--midnight); font-weight: 700; }
+  .tag-x { color: var(--xrpl); font-weight: 700; }
+  .kicker { text-transform: uppercase; letter-spacing: 4px; font-size: .78rem; color: var(--muted); margin-bottom: 1.3rem;
+    display: inline-flex; align-items: center; gap: .6rem; }
+  .kicker::before { content:""; width: 28px; height: 1px; background: linear-gradient(90deg, var(--midnight), transparent); }
+  .lead { font-size: clamp(1.1rem, 2vw, 1.45rem); color: var(--muted); max-width: 62ch; }
+  .big { font-size: clamp(1.4rem, 2.6vw, 1.95rem); line-height: 1.35; max-width: 26ch; }
 
-  .flow { display: grid; gap: .7rem; max-width: 80ch; }
-  .step { display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: center;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1.1rem; }
-  .step .n { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 50%;
-    font-size: .95rem; font-weight: 700; }
-  .step .t { font-size: 1.12rem; }
-  .step .t small { color: var(--muted); }
-  .lane-m .n { background: rgba(139,124,246,.18); color: var(--midnight); }
-  .lane-g .n { background: rgba(232,195,74,.18); color: var(--amber); }
-  .lane-x .n { background: rgba(45,156,219,.18); color: var(--xrpl); }
+  ul.clean { list-style: none; display: grid; gap: .9rem; max-width: 72ch; margin-top: 1.4rem; }
+  ul.clean li { font-size: 1.25rem; padding-left: 2rem; position: relative; color: #d6d7e6; }
+  ul.clean li::before { content: "▹"; position: absolute; left: 0; color: var(--midnight); }
 
-  table { border-collapse: collapse; width: 100%; max-width: 80ch; font-size: 1.2rem; margin-top: .5rem; }
-  th, td { text-align: left; padding: .85rem 1rem; border-bottom: 1px solid var(--line); }
-  th { color: var(--muted); font-weight: 600; font-size: .95rem; text-transform: uppercase; letter-spacing: 1px; }
-  .col-priv { color: var(--midnight); }
-  .col-pub { color: var(--xrpl); }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.3rem; margin-top: 1rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 1.7rem;
+    backdrop-filter: blur(10px); position: relative; overflow: hidden; }
+  .card::after { content:""; position:absolute; inset:0 0 auto 0; height:3px; }
+  .card.m::after { background: linear-gradient(90deg, var(--midnight), transparent); }
+  .card.g::after { background: linear-gradient(90deg, var(--amber), transparent); }
+  .card.x::after { background: linear-gradient(90deg, var(--xrpl), transparent); }
+  .card .ic { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 1rem; }
+  .card.m .ic { background: rgba(155,140,255,.14); color: var(--midnight); }
+  .card.g .ic { background: rgba(240,207,90,.14); color: var(--amber); }
+  .card.x .ic { background: rgba(58,171,240,.14); color: var(--xrpl); }
+  .card .ic svg { width: 26px; height: 26px; }
+  .card h3 { font-size: 1.2rem; margin-bottom: .5rem; }
+  .card p { color: var(--muted); font-size: 1rem; }
 
-  .term { background: #07070e; border: 1px solid var(--line); border-radius: 12px; padding: 1.6rem 1.8rem;
-    font-family: ui-monospace, monospace; font-size: 1.25rem; max-width: 70ch; }
-  .term .row { display: flex; justify-content: space-between; padding: .35rem 0; }
+  .diagram { width: 100%; max-width: 1000px; margin: .5rem auto 0; }
+  .diagram svg { width: 100%; height: auto; }
+
+  table { border-collapse: collapse; width: 100%; max-width: 82ch; font-size: 1.18rem; margin-top: .4rem;
+    background: var(--panel); border-radius: 14px; overflow: hidden; backdrop-filter: blur(8px); }
+  th, td { text-align: left; padding: .9rem 1.2rem; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: none; }
+  th { font-weight: 700; font-size: .82rem; text-transform: uppercase; letter-spacing: 1.5px; }
+  th.priv { color: var(--midnight); } th.pub { color: var(--xrpl); }
+  td:first-child { color: #d6d7e6; }
+
+  .term { background: linear-gradient(180deg, #0a0a16, #07070f); border: 1px solid var(--line); border-radius: 16px;
+    padding: 1.6rem 1.9rem; font-family: ui-monospace, monospace; font-size: 1.18rem; max-width: 72ch; box-shadow: 0 20px 60px -30px #000; }
+  .term .hd { color: var(--muted); margin-bottom: 1rem; font-size: .8rem; letter-spacing: 2px; text-transform: uppercase; display:flex; gap:.5rem; align-items:center; }
+  .term .hd b { color: var(--midnight); }
+  .term .row { display: flex; justify-content: space-between; padding: .4rem 0; align-items:center; }
   .term .ok { color: var(--ok); } .term .no { color: var(--no); } .term .mut { color: var(--muted); }
-  .term .hd { color: var(--midnight); margin-bottom: .8rem; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase; }
+  .term .sep { border-top: 1px dashed var(--line); margin: .6rem 0; }
 
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 90ch; }
-  .panelbox { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.5rem 1.7rem; }
-  .panelbox h3 { font-size: 1.15rem; margin-bottom: .8rem; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6rem; max-width: 90ch; }
+  .panelbox { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 1.6rem 1.8rem; backdrop-filter: blur(10px); }
+  .panelbox h3 { font-size: 1.15rem; margin-bottom: .7rem; display:flex; align-items:center; gap:.6rem; }
   .panelbox.trustless h3 { color: var(--ok); } .panelbox.trusted h3 { color: var(--amber); }
-  .panelbox p { color: var(--muted); font-size: 1.05rem; }
+  .panelbox p { color: var(--muted); font-size: 1.04rem; }
 
-  .pills { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.2rem; }
-  .pill { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: .5rem 1.1rem; font-size: 1.05rem; }
+  .pills { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.4rem; max-width: 80ch; }
+  .pill { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: .55rem 1.2rem; font-size: 1.02rem; backdrop-filter: blur(8px); }
 
-  .status { display: grid; gap: .8rem; max-width: 70ch; font-size: 1.3rem; }
-  .status .done { color: var(--ok); } .status .next { color: var(--amber); }
+  .status { display: grid; gap: .75rem; max-width: 74ch; font-size: 1.22rem; margin-top: .4rem; }
+  .status div { display:flex; align-items:center; gap:.7rem; }
+  .status .done { color: #cfe9d8; } .status .done b { color: var(--ok); }
+  .status .next { color: #efe2b6; } .status .next b { color: var(--amber); }
 
-  footer { position: absolute; bottom: 2.2vh; left: 9vw; right: 9vw; display: flex; justify-content: space-between;
-    align-items: center; color: var(--muted); font-size: .85rem; }
-  .dots { display: flex; gap: .4rem; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line); cursor: pointer; }
-  .dot.on { background: var(--midnight); }
-  .progress { position: absolute; top: 0; left: 0; height: 3px; background: linear-gradient(90deg, var(--midnight), var(--xrpl)); transition: width .25s; }
-  .hint { position: absolute; bottom: 2.2vh; left: 50%; transform: translateX(-50%); color: var(--line); font-size: .8rem; }
-  @media print { .slide { display: flex !important; opacity: 1 !important; position: relative; page-break-after: always; height: 100vh; } footer, .hint, .progress { display: none; } }
+  footer { position: absolute; z-index: 2; bottom: 2.3vh; left: 8vw; right: 8vw; display: flex; justify-content: space-between;
+    align-items: center; color: var(--muted); font-size: .82rem; }
+  .dots { display: flex; gap: .45rem; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); cursor: pointer; transition: all .2s; }
+  .dot.on { background: linear-gradient(120deg, var(--midnight), var(--xrpl)); transform: scale(1.25); }
+  .progress { position: fixed; top: 0; left: 0; height: 3px; z-index: 3; width: 0;
+    background: linear-gradient(90deg, var(--midnight), var(--xrpl)); box-shadow: 0 0 12px var(--midnight); transition: width .3s; }
+  .hint { position: absolute; z-index:2; bottom: 2.3vh; left: 50%; transform: translateX(-50%); color: rgba(150,150,190,.4); font-size: .78rem; }
+  @media print { .slide { display:flex !important; opacity:1 !important; transform:none !important; position:relative; page-break-after:always; height:100vh; } footer,.hint,.progress{display:none;} body{overflow:visible;} }
 </style>
 </head>
 <body>
+<div class="bg"><div class="stars"></div><div class="grid"></div><div class="orb a"></div><div class="orb b"></div><div class="orb c"></div></div>
+
+<!-- icon + diagram symbol library -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="gm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9b8cff"/><stop offset="1" stop-color="#6d5fd6"/></linearGradient>
+  <linearGradient id="gx" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3aabf0"/><stop offset="1" stop-color="#1e7bb8"/></linearGradient>
+  <linearGradient id="gg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0cf5a"/><stop offset="1" stop-color="#d4a82e"/></linearGradient>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9c9cb8"/></marker>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-bank" viewBox="0 0 24 24"><path d="M3 9l9-5 9 5M5 9v9m4-9v9m6-9v9m4-9v9M3 20h18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-ledger" viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 5.5v6c0 1.6 3.4 2.8 7.5 2.8s7.5-1.2 7.5-2.8v-6M4.5 11.5v6c0 1.6 3.4 2.8 7.5 2.8s7.5-1.2 7.5-2.8v-6" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10" width="15" height="10.5" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-badge" viewBox="0 0 24 24"><circle cx="12" cy="9" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 9l1.8 1.8L15 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 13.5L7 21l5-2.8L17 21l-1.5-7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 3v4h4M9 12h6M9 16h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</defs></svg>
+
 <div class="progress" id="prog"></div>
 <div class="deck" id="deck">
 
-  <!-- 1 -->
+  <!-- 1 TITLE -->
   <section class="slide active">
     <div class="kicker">Atlantis · Reference dApp</div>
-    <h1><span class="tag">Midnight</span> × <span class="tag-x">XRPL</span><br/>Private Credential Gateway</h1>
-    <p class="lead">Prove you qualify — <em>privately</em>. Let the XRP Ledger enforce it — <em>natively</em>.</p>
+    <h1><span class="tag">Midnight</span> <span style="color:var(--muted);font-weight:300">×</span> <span class="tag-x">XRPL</span><br/><span class="gtext">Private Credential Gateway</span></h1>
+    <p class="lead" style="margin-top:1.2rem">Prove you qualify — <em>privately</em>. Let the XRP Ledger enforce it — <em>natively</em>.</p>
+    <div class="diagram" style="max-width:760px;margin-top:2.4rem">
+      <svg viewBox="0 0 760 130">
+        <g font-family="ui-monospace,monospace" font-size="12" fill="#9c9cb8" text-anchor="middle">
+          <line x1="120" y1="65" x2="270" y2="65" stroke="#444" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow)"/>
+          <line x1="330" y1="65" x2="480" y2="65" stroke="#444" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow)"/>
+          <line x1="540" y1="65" x2="660" y2="65" stroke="#444" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow)"/>
+          <g filter="url(#glow)"><circle cx="70" cy="65" r="34" fill="none" stroke="url(#gm)" stroke-width="2"/></g>
+          <use href="#i-lock" x="50" y="45" width="40" height="40" color="#9b8cff"/>
+          <text x="70" y="118">prove privately</text>
+          <g filter="url(#glow)"><circle cx="400" cy="65" r="34" fill="none" stroke="url(#gg)" stroke-width="2"/></g>
+          <use href="#i-badge" x="380" y="45" width="40" height="40" color="#f0cf5a"/>
+          <text x="400" y="118">issue credential</text>
+          <g filter="url(#glow)"><circle cx="710" cy="65" r="34" fill="none" stroke="url(#gx)" stroke-width="2"/></g>
+          <use href="#i-ledger" x="690" y="45" width="40" height="40" color="#3aabf0"/>
+          <text x="710" y="118">ledger enforces</text>
+        </g>
+      </svg>
+    </div>
   </section>
 
-  <!-- 2 -->
+  <!-- 2 PROBLEM -->
   <section class="slide">
     <div class="kicker">The problem</div>
     <h2>Compliance vs. privacy</h2>
-    <p class="big">To access gated things you must <span class="tag">prove you qualify</span> — but proving usually means <span class="tag-x">handing over your identity</span>.</p>
-    <ul class="clean" style="margin-top:2rem">
+    <p class="big">To reach gated things you must <span class="tag">prove you qualify</span> — but proving usually means <span class="tag-x">handing over your identity</span>.</p>
+    <ul class="clean">
       <li>KYC-gated pools want proof you're verified — and collect your documents.</li>
       <li>Age-gated commerce wants your birthday — and stores it.</li>
       <li>Token-holder drops want your wallet — and dox it publicly.</li>
     </ul>
   </section>
 
-  <!-- 3 -->
+  <!-- 3 IDEA -->
   <section class="slide">
     <div class="kicker">The idea</div>
-    <h2>Prove privately → enforce on-ledger</h2>
-    <p class="big">A zero-knowledge proof on <span class="tag">Midnight</span> becomes a native credential on <span class="tag-x">XRPL</span> — and the ledger itself does the gating.</p>
-    <p class="lead" style="margin-top:1.6rem">No middleman holds your data. No server decides each payment. <strong>Private eligibility, public enforcement.</strong></p>
+    <h2>Prove privately <span style="color:var(--muted)">→</span> enforce on-ledger</h2>
+    <div class="diagram" style="max-width:880px">
+      <svg viewBox="0 0 880 200">
+        <g font-family="system-ui" font-size="14" fill="#c6c7da" text-anchor="middle">
+          <line x1="210" y1="90" x2="330" y2="90" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+          <line x1="550" y1="90" x2="670" y2="90" stroke="#555" stroke-width="2" marker-end="url(#arrow)"/>
+          <g filter="url(#glow)"><rect x="40" y="48" width="170" height="84" rx="16" fill="rgba(155,140,255,.08)" stroke="url(#gm)" stroke-width="1.8"/></g>
+          <use href="#i-shield" x="105" y="60" width="34" height="34" color="#9b8cff"/>
+          <text x="125" y="120" font-weight="600" fill="#9b8cff">ZK proof</text>
+          <g filter="url(#glow)"><rect x="355" y="48" width="170" height="84" rx="16" fill="rgba(240,207,90,.08)" stroke="url(#gg)" stroke-width="1.8"/></g>
+          <use href="#i-badge" x="420" y="60" width="34" height="34" color="#f0cf5a"/>
+          <text x="440" y="120" font-weight="600" fill="#f0cf5a">credential</text>
+          <g filter="url(#glow)"><rect x="670" y="48" width="170" height="84" rx="16" fill="rgba(58,171,240,.08)" stroke="url(#gx)" stroke-width="1.8"/></g>
+          <use href="#i-ledger" x="735" y="60" width="34" height="34" color="#3aabf0"/>
+          <text x="755" y="120" font-weight="600" fill="#3aabf0">enforced</text>
+          <text x="285" y="78" font-size="12" fill="#9c9cb8">becomes</text>
+          <text x="610" y="78" font-size="12" fill="#9c9cb8">checked by</text>
+        </g>
+      </svg>
+    </div>
+    <p class="lead" style="margin-top:1.4rem;text-align:center;margin-left:auto;margin-right:auto">No middleman holds your data. No server decides each payment.<br/><strong style="color:var(--text)">Private eligibility, public enforcement.</strong></p>
   </section>
 
-  <!-- 4 -->
+  <!-- 4 ARCHITECTURE -->
   <section class="slide">
     <div class="kicker">Architecture</div>
     <h2>Three pieces</h2>
     <div class="cards">
-      <div class="card m"><h3>① Midnight contract</h3><p>The privacy layer. Holds a Merkle tree of valid credentials + a policy (e.g. "adult, in CA"). Verifies the ZK proof.</p></div>
-      <div class="card g"><h3>② Gateway service</h3><p>The trusted issuer — a Certificate Authority. Holds an XRPL issuer key. <strong>Non-custodial: never touches user funds.</strong></p></div>
-      <div class="card x"><h3>③ XRPL</h3><p>The enforcement layer. Native Credentials + Deposit Authorization (live on mainnet). The ledger blocks or allows.</p></div>
+      <div class="card m"><div class="ic"><svg><use href="#i-shield"/></svg></div><h3>① Midnight contract</h3><p>The privacy layer. Holds a Merkle tree of valid credentials + a policy (e.g. "adult, in CA") and verifies the zero-knowledge proof.</p></div>
+      <div class="card g"><div class="ic"><svg><use href="#i-bank"/></svg></div><h3>② Gateway service</h3><p>The trusted issuer — a Certificate Authority. Holds an XRPL issuer key. <strong style="color:#e8e8f0">Non-custodial: never touches user funds.</strong></p></div>
+      <div class="card x"><div class="ic"><svg><use href="#i-ledger"/></svg></div><h3>③ XRPL</h3><p>The enforcement layer. Native Credentials + Deposit Authorization, live on mainnet. The ledger blocks or allows.</p></div>
     </div>
   </section>
 
-  <!-- 5 -->
+  <!-- 5 FLOW DIAGRAM -->
   <section class="slide">
     <div class="kicker">How it works</div>
     <h2>The flow</h2>
-    <div class="flow">
-      <div class="step lane-m"><div class="n">1</div><div class="t">User holds a private credential <small>— issued off-chain, its commitment is a leaf in the Midnight tree</small></div></div>
-      <div class="step lane-m"><div class="n">2</div><div class="t">Prove eligibility in zero-knowledge <small>— membership + policy + binds to XRPL address; burns a nullifier (no reuse). Private data never goes on-chain.</small></div></div>
-      <div class="step lane-x"><div class="n">3</div><div class="t">Sign an XRPL challenge <small>— proves the user controls the XRPL account being credentialed</small></div></div>
-      <div class="step lane-g"><div class="n">4</div><div class="t">Gateway verifies proof + signature → issues <code>CredentialCreate</code></div></div>
-      <div class="step lane-x"><div class="n">5</div><div class="t">User submits <code>CredentialAccept</code> <small>— credential is now live on their account</small></div></div>
-      <div class="step lane-x"><div class="n">6</div><div class="t">Gated account enforces it <small>— Deposit Auth + credential preauth on every payment</small></div></div>
+    <div class="diagram" style="max-width:1040px">
+      <svg viewBox="0 0 1040 300">
+        <!-- private zone -->
+        <rect x="20" y="40" width="470" height="190" rx="18" fill="rgba(155,140,255,.05)" stroke="rgba(155,140,255,.4)" stroke-width="1.4" stroke-dasharray="6 5"/>
+        <text x="255" y="64" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" letter-spacing="1" fill="#9b8cff">PRIVATE — YOUR DATA NEVER LEAVES THIS ZONE</text>
+        <g font-family="system-ui" font-size="13" fill="#c6c7da" text-anchor="middle">
+          <!-- top arrows -->
+          <g stroke="#5a5a78" stroke-width="1.8" fill="none">
+            <line x1="180" y1="150" x2="300" y2="150" marker-end="url(#arrow)"/>
+            <line x1="420" y1="150" x2="555" y2="150" marker-end="url(#arrow)"/>
+            <line x1="675" y1="150" x2="800" y2="150" marker-end="url(#arrow)"/>
+          </g>
+          <text x="240" y="138" font-size="12" fill="#9b8cff">① prove (ZK)</text>
+          <text x="487" y="138" font-size="12" fill="#9c9cb8">② approved</text>
+          <text x="737" y="138" font-size="12" fill="#f0cf5a">③ CredentialCreate</text>
+          <!-- nodes -->
+          <g filter="url(#glow)"><circle cx="120" cy="150" r="40" fill="rgba(20,20,34,.8)" stroke="url(#gm)" stroke-width="2"/></g>
+          <use href="#i-user" x="100" y="130" width="40" height="40" color="#9b8cff"/><text x="120" y="218" font-weight="600">You</text>
+          <g filter="url(#glow)"><circle cx="360" cy="150" r="40" fill="rgba(20,20,34,.8)" stroke="url(#gm)" stroke-width="2"/></g>
+          <use href="#i-shield" x="340" y="130" width="40" height="40" color="#9b8cff"/><text x="360" y="218" font-weight="600">Midnight</text>
+          <g filter="url(#glow)"><circle cx="615" cy="150" r="40" fill="rgba(20,20,34,.8)" stroke="url(#gg)" stroke-width="2"/></g>
+          <use href="#i-bank" x="595" y="130" width="40" height="40" color="#f0cf5a"/><text x="615" y="218" font-weight="600">Gateway</text>
+          <g filter="url(#glow)"><circle cx="860" cy="150" r="40" fill="rgba(20,20,34,.8)" stroke="url(#gx)" stroke-width="2"/></g>
+          <use href="#i-ledger" x="840" y="130" width="40" height="40" color="#3aabf0"/><text x="860" y="218" font-weight="600">XRPL</text>
+          <!-- user signs + accepts (curve under) -->
+          <path d="M120 190 C 120 270, 860 270, 860 192" fill="none" stroke="#3aabf0" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+          <text x="490" y="262" font-size="12" fill="#3aabf0">④ sign XRPL challenge  ·  ⑤ accept credential</text>
+        </g>
+      </svg>
     </div>
+    <p class="lead" style="margin-top:.6rem;font-size:1.05rem">A nullifier is burned on prove — the same credential <strong style="color:var(--text)">can't be used twice</strong>.</p>
   </section>
 
-  <!-- 6 -->
+  <!-- 6 PRIVATE VS PUBLIC -->
   <section class="slide">
     <div class="kicker">The privacy property</div>
     <h2>What's private vs. public</h2>
     <table>
-      <tr><th class="col-priv">Private — never on-chain</th><th class="col-pub">Public — on-chain</th></tr>
+      <tr><th class="priv">🔒 Private — never on-chain</th><th class="pub">🌐 Public — on-chain</th></tr>
       <tr><td>Birthday, ID, raw KYC data</td><td>"A valid proof exists"</td></tr>
       <tr><td><em>Which</em> credential / leaf you hold</td><td>The XRPL credential (a badge)</td></tr>
       <tr><td>The underlying eligibility data</td><td>The gated payment result</td></tr>
     </table>
-    <p class="lead" style="margin-top:1.6rem; font-size:1.2rem">The gateway sees your address + that a proof exists — <strong>not your data</strong>. XRPL sees the badge — <strong>not why it was granted</strong>.</p>
+    <p class="lead" style="margin-top:1.5rem;font-size:1.12rem">The gateway sees your address + that a proof exists — <strong style="color:var(--text)">not your data</strong>. XRPL sees the badge — <strong style="color:var(--text)">not why it was granted</strong>.</p>
   </section>
 
-  <!-- 7 -->
+  <!-- 7 MONEY SLIDE -->
   <section class="slide">
-    <div class="kicker">The money slide</div>
-    <h2>Verified live — browser, real chains</h2>
-    <div class="term">
-      <div class="hd">Midnight Preprod + XRPL testnet · via 1AM</div>
-      <div class="row"><span class="mut">prove eligibility</span><span class="ok">✓ block 1425151</span></div>
-      <div class="row"><span class="mut">gateway issues credential</span><span class="ok">✓ CredentialCreate</span></div>
-      <div class="row"><span class="mut">user accepts</span><span class="ok">✓ tesSUCCESS</span></div>
-      <div class="row" style="border-top:1px solid var(--line); margin-top:.6rem; padding-top:.8rem"><span>payment <b>WITHOUT</b> credential</span><span class="no">tecNO_PERMISSION — blocked</span></div>
-      <div class="row"><span>payment <b>WITH</b> credential</span><span class="ok">tesSUCCESS — allowed</span></div>
+    <div class="kicker">Verified live — browser, real chains</div>
+    <h2>The ledger enforces it</h2>
+    <div style="display:grid;grid-template-columns:1.05fr .95fr;gap:2rem;align-items:center;max-width:1000px">
+      <div class="diagram" style="margin:0">
+        <svg viewBox="0 0 420 280">
+          <g font-family="system-ui" font-size="13" text-anchor="middle">
+            <!-- gate -->
+            <g filter="url(#glow)"><rect x="160" y="110" width="100" height="60" rx="12" fill="rgba(58,171,240,.1)" stroke="url(#gx)" stroke-width="1.8"/></g>
+            <use href="#i-shield" x="190" y="120" width="40" height="40" color="#3aabf0"/>
+            <text x="210" y="196" fill="#3aabf0" font-size="12">XRPL gate</text>
+            <text x="210" y="210" fill="#9c9cb8" font-size="11">DepositAuth</text>
+            <!-- inputs -->
+            <text x="70" y="60" fill="#ff8b84" font-size="12">payment</text><text x="70" y="76" fill="#9c9cb8" font-size="11">no credential</text>
+            <text x="70" y="222" fill="#7fe0a8" font-size="12">payment</text><text x="70" y="238" fill="#9c9cb8" font-size="11">with credential</text>
+            <path d="M120 70 C 150 70, 150 120, 175 128" fill="none" stroke="#ff5d52" stroke-width="1.6" marker-end="url(#arrow)"/>
+            <path d="M120 222 C 150 222, 150 160, 175 152" fill="none" stroke="#34d27b" stroke-width="1.6" marker-end="url(#arrow)"/>
+            <!-- outputs -->
+            <path d="M245 128 C 300 110, 310 80, 330 72" fill="none" stroke="#ff5d52" stroke-width="1.6" marker-end="url(#arrow)"/>
+            <path d="M245 152 C 300 170, 310 200, 330 210" fill="none" stroke="#34d27b" stroke-width="1.6" marker-end="url(#arrow)"/>
+            <g filter="url(#glow)"><circle cx="360" cy="66" r="22" fill="none" stroke="#ff5d52" stroke-width="2"/></g>
+            <text x="360" y="72" fill="#ff5d52" font-size="22">✕</text>
+            <g filter="url(#glow)"><circle cx="360" cy="214" r="22" fill="none" stroke="#34d27b" stroke-width="2"/></g>
+            <text x="360" y="221" fill="#34d27b" font-size="20">✓</text>
+          </g>
+        </svg>
+      </div>
+      <div class="term">
+        <div class="hd">Midnight Preprod + XRPL testnet · via <b>1AM</b></div>
+        <div class="row"><span class="mut">prove eligibility</span><span class="ok">✓ block 1425151</span></div>
+        <div class="row"><span class="mut">issue credential</span><span class="ok">✓ created</span></div>
+        <div class="row"><span class="mut">user accepts</span><span class="ok">✓ tesSUCCESS</span></div>
+        <div class="sep"></div>
+        <div class="row"><span>WITHOUT credential</span><span class="no">tecNO_PERMISSION</span></div>
+        <div class="row"><span>WITH credential</span><span class="ok">tesSUCCESS</span></div>
+      </div>
     </div>
-    <p class="lead" style="margin-top:1.4rem; font-size:1.15rem">Same payment. Blocked one way, allowed the other. <strong>The ledger enforced it</strong> — not us.</p>
+    <p class="lead" style="margin-top:1.2rem;font-size:1.1rem">Same payment — blocked one way, allowed the other. <strong style="color:var(--text)">The ledger decided, not us.</strong></p>
   </section>
 
-  <!-- 8 -->
+  <!-- 8 TRUST -->
   <section class="slide">
     <div class="kicker">Trust model</div>
     <h2>What you trust — and don't</h2>
     <div class="two">
-      <div class="panelbox trustless"><h3>✓ Trustless</h3><p>The Midnight proof (the chain verifies it) and the XRPL enforcement (the ledger verifies the credential). No one can fake either.</p></div>
-      <div class="panelbox trusted"><h3>⚖ Trusted (like a CA)</h3><p>The gateway, to only issue for valid proofs. <strong>Risk is false-issuance, not theft</strong> — it never holds user funds.</p></div>
+      <div class="panelbox trustless"><h3><svg width="20" height="20"><use href="#i-lock"/></svg> Trustless</h3><p>The Midnight proof (the chain verifies it) and the XRPL enforcement (the ledger verifies the credential). Neither can be faked.</p></div>
+      <div class="panelbox trusted"><h3><svg width="20" height="20"><use href="#i-bank"/></svg> Trusted — like a CA</h3><p>The gateway, to only issue for valid proofs. <strong style="color:#e8e8f0">Risk is false-issuance, not theft</strong> — it never holds user funds.</p></div>
     </div>
   </section>
 
-  <!-- 9 -->
+  <!-- 9 NOVEL -->
   <section class="slide">
     <div class="kicker">Why it matters</div>
     <h2>A new primitive</h2>
-    <p class="big">Credentials on XRPL exist. Private proofs on Midnight exist. <span class="tag">Wiring them together</span> — prove privately, enforce on-ledger — is the new part.</p>
+    <p class="big">Credentials on XRPL exist. Private proofs on Midnight exist. <span class="gtext" style="font-weight:700">Wiring them together</span> is the new part.</p>
     <div class="pills">
-      <span class="pill">Compliant-but-private pools</span>
-      <span class="pill">KYC-gated payments</span>
-      <span class="pill">Age-gated commerce</span>
-      <span class="pill">Token-holder drops (no doxxing)</span>
-      <span class="pill">Permissioned DEX / AMM domains</span>
+      <span class="pill">🏛 Compliant-but-private pools</span>
+      <span class="pill">🪪 KYC-gated payments</span>
+      <span class="pill">🔞 Age-gated commerce</span>
+      <span class="pill">🦭 Token-holder drops · no doxxing</span>
+      <span class="pill">🔁 Permissioned DEX / AMM domains</span>
     </div>
   </section>
 
-  <!-- 10 -->
+  <!-- 10 STATUS -->
   <section class="slide">
     <div class="kicker">Status</div>
     <h2>Where it stands</h2>
     <div class="status">
-      <div class="done">✓ Full flow verified end-to-end, live, in a browser</div>
-      <div class="done">✓ Contract deployed on Midnight Preprod · gateway wired + running</div>
-      <div class="done">✓ Nullifier replay protection demonstrated</div>
-      <div class="done">✓ Core pipeline Codex-audited green</div>
-      <div class="next">→ Codex review of the full XRPL flow (in progress)</div>
-      <div class="next">→ Aliit submission · then productize into x-multi (mainnet)</div>
+      <div class="done"><b>✓</b> Full flow verified end-to-end, live, in a browser</div>
+      <div class="done"><b>✓</b> Contract deployed on Midnight Preprod · gateway wired + running</div>
+      <div class="done"><b>✓</b> Nullifier replay protection demonstrated</div>
+      <div class="done"><b>✓</b> Core pipeline Codex-audited green</div>
+      <div class="next"><b>→</b> Codex review of the full XRPL flow (in progress)</div>
+      <div class="next"><b>→</b> Aliit submission · then productize into x-multi (mainnet)</div>
     </div>
   </section>
 
-  <!-- 11 -->
-  <section class="slide">
-    <h1>Private eligibility.<br/><span class="tag-x">Public enforcement.</span></h1>
-    <p class="lead" style="margin-top:1rem">Midnight × XRPL Private Credential Gateway</p>
-    <p class="lead mono" style="margin-top:2rem; font-size:1rem; color:var(--line)">Atlantis · Dennis Zarelli (Dpac Jones)</p>
+  <!-- 11 CLOSE -->
+  <section class="slide" style="align-items:flex-start">
+    <h1>Private eligibility.<br/><span class="gtext">Public enforcement.</span></h1>
+    <p class="lead" style="margin-top:1.2rem">Midnight × XRPL — Private Credential Gateway</p>
+    <p class="mono" style="margin-top:2.2rem;font-size:.95rem;color:rgba(150,150,190,.5)">Atlantis · Dennis Zarelli (Dpac Jones)</p>
   </section>
 
 </div>
 
 <footer>
-  <div>Midnight × XRPL — Private Credential Gateway</div>
+  <div style="display:flex;align-items:center;gap:.6rem"><span style="width:8px;height:8px;border-radius:50%;background:linear-gradient(120deg,var(--midnight),var(--xrpl))"></span> Midnight × XRPL — Private Credential Gateway</div>
   <div class="dots" id="dots"></div>
   <div><span id="cur">1</span> / <span id="tot">11</span></div>
 </footer>
-<div class="hint">← → or click to navigate · press P to print/PDF</div>
+<div class="hint">← → or click to navigate · press P to print / export PDF</div>
 
 <script>
   const slides = Array.from(document.querySelectorAll('.slide'));
@@ -251,15 +376,16 @@
     document.getElementById('cur').textContent = i + 1;
     document.getElementById('prog').style.width = ((i + 1) / slides.length * 100) + '%';
   }
-  function next() { go(i + 1); } function prev() { go(i - 1); }
+  const next = () => go(i + 1), prev = () => go(i - 1);
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') next();
-    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') prev();
+    if (['ArrowRight',' ','PageDown'].includes(e.key)) next();
+    else if (['ArrowLeft','PageUp'].includes(e.key)) prev();
     else if (e.key === 'Home') go(0); else if (e.key === 'End') go(slides.length - 1);
     else if (e.key.toLowerCase() === 'p') window.print();
   });
   document.getElementById('deck').addEventListener('click', (e) => {
-    if (e.clientX > window.innerWidth / 2) next(); else prev();
+    if (e.target.closest('.dot')) return;
+    (e.clientX > window.innerWidth / 2 ? next : prev)();
   });
   go(0);
 </script>

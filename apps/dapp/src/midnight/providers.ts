@@ -20,8 +20,8 @@ import {
 } from "@midnight-ntwrk/ledger-v8";
 import type { UnboundTransaction } from "@midnight-ntwrk/midnight-js-types";
 import semver from "semver";
-import { inMemoryPrivateStateProvider } from "./in-memory-private-state.ts";
-import { zkConfigPath, type GatewayCircuitKeys, type GatewayPrivateState, type GatewayProviders, GatewayPrivateStateId } from "./contract.ts";
+import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
+import { zkConfigPath, type GatewayCircuitKeys, type GatewayProviders, GatewayPrivateStateId } from "./contract.ts";
 
 const COMPATIBLE_CONNECTOR_API_VERSION = "4.x"; // 1AM ships DApp Connector v4 (window.midnight typed by the connector pkg)
 
@@ -88,7 +88,14 @@ export async function connectMidnight(networkId: string, walletKey?: string, pro
   const proverUri = proverOverride ?? config.proverServerUri!;
 
   const providers: GatewayProviders = {
-    privateStateProvider: inMemoryPrivateStateProvider<typeof GatewayPrivateStateId, GatewayPrivateState>(),
+    // level provider (IndexedDB in the browser) — its codec produces the runtime-correct shape for
+    // Vector<16, Bytes<32>> witnesses (the in-memory one stored raw and broke proveEligibility). Same
+    // provider the Node harness used. (example-kitties uses level in the browser too.)
+    privateStateProvider: levelPrivateStateProvider<typeof GatewayPrivateStateId>({
+      privateStateStoreName: "mxrpl-gateway-private-state",
+      accountId: shieldedAddresses.shieldedCoinPublicKey,
+      privateStoragePasswordProvider: () => btoa(shieldedAddresses.shieldedCoinPublicKey) + "!",
+    }),
     zkConfigProvider: keyMaterialProvider,
     proofProvider: httpClientProofProvider(proverUri, keyMaterialProvider),
     publicDataProvider: indexerPublicDataProvider(config.indexerUri, config.indexerWsUri),

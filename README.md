@@ -95,3 +95,11 @@ npm run e2e -w @mxrpl/e2e-harness
 
 **Testnet only.** No mainnet deployment; all credential attributes are synthetic demo data, not real KYC.
 Part of **Atlantis Engine**.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE) · © 2026 Dpac Jones. Build on it freely.
+
+> The transitive **GPL-3.0** dependencies (`@substrate/connect*`, `@subsquid/*`) come from the Midnight
+> SDK's Substrate-based chain tooling — standard for any Midnight dApp. This project vendors **no** GPL
+> source; those packages are fetched from npm at install time and are not redistributed in this repo.

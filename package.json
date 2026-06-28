@@ -2,6 +2,7 @@
   "name": "midnight-xrpl-gateway",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Midnight XRPL Private Credential Gateway — standalone testnet reference dApp",
   "workspaces": [

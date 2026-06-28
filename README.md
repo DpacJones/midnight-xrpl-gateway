@@ -15,6 +15,11 @@ again after the issuer revokes it.
 > and the gateway never sees them (though a *hosted* prover does — see below); your XRPL account and
 > credential are public. See [`docs/PRIVACY_BOUNDARY.md`](docs/PRIVACY_BOUNDARY.md).
 
+## ▶ See it first
+
+- **Walkthrough deck** — the whole idea in ~2 minutes: **[www.xmulti.app/gateway.html](https://www.xmulti.app/gateway.html)** (source: [`docs/deck.html`](docs/deck.html))
+- **Verified live in-browser** on Midnight **Preprod** + XRPL testnet via the [1AM wallet](https://1am.xyz): connect → real ZK `proveEligibility` → gateway issues the credential → accept → credential-gated payment (`tecNO_PERMISSION` → `tesSUCCESS`). The interactive dApp is in [`apps/dapp`](apps/dapp).
+
 ## ✅ Working result (verified end-to-end on live infrastructure)
 
 Run against a live local Midnight devnet + live XRPL testnet ([`docs/DEMO.md`](docs/DEMO.md)):
@@ -27,7 +32,7 @@ Run against a live local Midnight devnet + live XRPL testnet ([`docs/DEMO.md`](d
 | Payment **with** credential | `tesSUCCESS` — allowed |
 | `CredentialDelete` → payment **after revocation** | `tecBAD_CREDENTIALS` — re-blocked |
 
-**80 unit/conformance tests** + the live end-to-end lifecycle, all green.
+**81 unit/conformance tests** + the live end-to-end lifecycle, all green.
 
 ```mermaid
 sequenceDiagram
@@ -60,6 +65,8 @@ sequenceDiagram
 | `packages/gateway` | the scoped, fail-closed credential gateway (issues one fixed `CredentialCreate`) |
 | `contracts/private-credential-gateway` | the **normative** Compact contract `PrivateCredentialGateway.compact` |
 | `apps/e2e-harness` | deploys to a local Midnight devnet + runs the full lifecycle on XRPL testnet |
+| `apps/dapp` | the interactive browser dApp (Vite + React) — connect a Midnight wallet, prove, run the full XRPL flow |
+| `apps/gateway-service` | the gateway as an HTTP service (`POST /issue-credential`; issuer seed stays backend-only) |
 | `scripts/spike-credentials.mjs` | the Phase 0 XRPL credential-enforcement protocol spike |
 
 ## Docs
@@ -79,7 +86,7 @@ Toolchain (pinned — see `docs/PROTOCOL_DECISIONS.md`): Compact compiler **0.31
 
 ```sh
 npm ci
-node --test                                                   # 80 unit/conformance tests
+node --test                                                   # 81 unit/conformance tests
 npm run compile -w @mxrpl/private-credential-gateway-contract  # compile the Compact contract
 npm run prove   -w @mxrpl/private-credential-gateway-contract   # one REAL ZK proof (needs proof server :6300)
 # Full E2E (needs a local Midnight devnet + XRPL testnet — see docs/DEMO.md):

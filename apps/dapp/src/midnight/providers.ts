@@ -87,6 +87,11 @@ export async function connectMidnight(networkId: string, walletKey?: string, pro
   const keyMaterialProvider = new FetchZkConfigProvider<GatewayCircuitKeys>(zkConfigPath, fetch.bind(window));
   const proverUri = proverOverride ?? config.proverServerUri!;
 
+  // At-rest encryption key for the IndexedDB private state — a per-SESSION random secret, NOT derived
+  // from the public coin key (Codex review). Witness inputs are prove-only/ephemeral, so a session-scoped
+  // secret (not recoverable across sessions) protects them at rest without keying off public data.
+  const sessionStorageSecret = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24))));
+
   const providers: GatewayProviders = {
     // level provider (IndexedDB in the browser) — its codec produces the runtime-correct shape for
     // Vector<16, Bytes<32>> witnesses (the in-memory one stored raw and broke proveEligibility). Same
@@ -94,7 +99,7 @@ export async function connectMidnight(networkId: string, walletKey?: string, pro
     privateStateProvider: levelPrivateStateProvider<typeof GatewayPrivateStateId>({
       privateStateStoreName: "mxrpl-gateway-private-state",
       accountId: shieldedAddresses.shieldedCoinPublicKey,
-      privateStoragePasswordProvider: () => btoa(shieldedAddresses.shieldedCoinPublicKey) + "!",
+      privateStoragePasswordProvider: () => sessionStorageSecret,
     }),
     zkConfigProvider: keyMaterialProvider,
     proofProvider: httpClientProofProvider(proverUri, keyMaterialProvider),

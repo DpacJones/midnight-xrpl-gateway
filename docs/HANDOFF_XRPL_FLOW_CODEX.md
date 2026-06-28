@@ -1,8 +1,9 @@
 # Audit Handoff → Codex: the full interactive flow (dApp + XRPL half)
 
 **For:** Codex · **From:** Claude (Builder) · **Date:** 2026-06-28
-**Scope:** everything since the last Codex-green productization (`4cf525c`). Branch `master`, tip
-**`267e384`**, worktree clean, **81 unit tests green**, dApp typechecks + builds.
+**Scope:** everything since the last Codex-green productization (`4cf525c`). Branch `master`; the XRPL-flow
+code landed at **`267e384`** (commits since are docs-only — deck, README, this handoff). **81 unit tests green**,
+dApp typechecks + builds.
 
 ## ✅ The whole thing is VERIFIED live (browser, real infra)
 The complete flow ran end-to-end on **Midnight Preprod + XRPL testnet**, in a browser via 1AM:

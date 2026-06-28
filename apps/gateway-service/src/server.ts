@@ -40,6 +40,9 @@ const MAX_BODY = 16 * 1024; // issuance requests are tiny; cap to avoid memory a
 const STATUS_BY_CODE: Record<string, number> = { "rate-limited": 429, "receipt:missing": 403 };
 
 const CORS_ORIGIN = process.env.MXRPL_CORS_ORIGIN ?? "*"; // allow the dApp origin (demo default: any)
+if (CORS_ORIGIN === "*") {
+  console.warn(JSON.stringify({ event: "cors-wildcard", warn: "MXRPL_CORS_ORIGIN=* — pin to the dApp origin for production" }));
+}
 
 function send(res: ServerResponse, code: number, body: unknown): void {
   const s = JSON.stringify(body);

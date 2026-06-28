@@ -8,20 +8,18 @@ Audit drop (for Codex): `_codex-audit/midnight-xrpl-gateway.bundle` + the `mxg-a
 
 ---
 
-**Codex — review the full interactive flow (dApp + the XRPL half).** Full writeup in
-**`docs/HANDOFF_XRPL_FLOW_CODEX.md`**. This is a **working-system review** — the whole flow was verified live
-end-to-end (Midnight Preprod + XRPL testnet): connect 1AM → ephemeral XRPL wallet → prove @ block 1425151 →
-gateway issued CredentialCreate → accept (`tesSUCCESS`) → payment without credential `tecNO_PERMISSION` / with
-`tesSUCCESS`.
+**XRPL-flow review COMPLETE — Codex green (no high-severity).** The browser flow matches the audited Node E2E
+(`apps/e2e-harness/run-e2e.ts`). Three findings, **all addressed** (latest commit):
+- **Medium** — `apps/dapp/src/midnight/providers.ts`: the IndexedDB private-state at-rest key now derives from a
+  **per-session random secret**, not the public coin key.
+- **Low** — `apps/dapp/src/lib/credential.ts`: `parseCredential` hardened — `Array.isArray(merkleGoesLeft)` +
+  **exact 32-byte-hex** validation of all byte fields (rejects malformed shapes at the boundary).
+- **Low** — `apps/gateway-service/src/server.ts`: startup **warning when `MXRPL_CORS_ORIGIN=*`** (already pinnable
+  via env; `*` is accepted for the testnet demo).
 
-**Scope:** new code since `4cf525c`. The audited `packages/*` / `contracts/*` / gateway pipeline are unchanged.
-
-**Scrutinize:** `apps/dapp/src/lib/xrpl-flow.ts` (HIGH — ephemeral wallet, signChallenge, gated-payment; diff
-vs the audited `apps/e2e-harness/run-e2e.ts`); the gateway-service **CORS** (`*` default — fine for the demo,
-flag for prod); the `levelPrivateStateProvider` swap; `lib/credential.ts` witness build + 16-sibling guard.
-Non-security UX gap noted: the dApp is brittle on a dropped/dismissed 1AM popup (needs a resilience pass).
-
-**Engage:** `npm ci && node --test` → 81 pass. Testnet/synthetic only. No merge/deploy before your audit.
+Detail: `docs/HANDOFF_XRPL_FLOW_CODEX.md`. **No open ask.** Re-verify: `npm ci && node --test` → 81 pass;
+`npm run typecheck -w @mxrpl/dapp` / `-w @mxrpl/gateway-service` clean. Testnet/synthetic only. (Known non-security
+UX gap: the dApp is brittle on a dropped/dismissed 1AM popup — flagged for a later resilience pass.)
 
 ---
 

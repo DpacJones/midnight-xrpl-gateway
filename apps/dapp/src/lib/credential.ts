@@ -28,6 +28,11 @@ export interface ProveRequest {
   requestNonceHex: string;
 }
 
+const HEX32 = /^[0-9a-fA-F]{64}$/; // exactly 32 bytes
+function assertHex32(v: unknown, name: string): void {
+  if (typeof v !== "string" || !HEX32.test(v)) throw new Error(`${name} must be 32-byte hex (64 chars)`);
+}
+
 /** Parse a pasted credential JSON; tolerates either the bare credential or the full .demo-deploy.json. */
 export function parseCredential(json: string): DemoCredential {
   const obj = JSON.parse(json) as Record<string, unknown>;
@@ -35,12 +40,22 @@ export function parseCredential(json: string): DemoCredential {
   if (!c.holderSecretHex || !Array.isArray(c.merkleSiblingsHex)) {
     throw new Error("not a credential bundle (missing holderSecretHex / merkleSiblingsHex)");
   }
-  // Guard against a truncated paste — the circuit needs EXACTLY 16 siblings + flags, and a short paste
-  // otherwise fails cryptically deep in circuit execution ("expected Vector<16, Bytes<32>>").
-  if (c.merkleSiblingsHex.length !== 16 || c.merkleGoesLeft?.length !== 16) {
+  // Exactly 16 siblings + 16 flags, both REAL arrays — a truncated/malformed paste otherwise falls
+  // through to a cryptic deep-circuit error ("expected Vector<16, Bytes<32>>").
+  if (c.merkleSiblingsHex.length !== 16 || !Array.isArray(c.merkleGoesLeft) || c.merkleGoesLeft.length !== 16) {
     throw new Error(
-      `credential must have exactly 16 merkleSiblingsHex + 16 merkleGoesLeft, got ${c.merkleSiblingsHex.length}/${c.merkleGoesLeft?.length} — looks like a truncated paste`,
+      `credential must have exactly 16 merkleSiblingsHex + 16 merkleGoesLeft (arrays), got ` +
+        `${c.merkleSiblingsHex.length}/${Array.isArray(c.merkleGoesLeft) ? c.merkleGoesLeft.length : "non-array"}`,
     );
+  }
+  // Byte fields must be exactly 32-byte hex — otherwise fromHex yields wrong-width bytes that only fail
+  // later in the circuit. Validate at the boundary instead.
+  assertHex32(c.holderSecretHex, "holderSecretHex");
+  assertHex32(c.credentialIdHex, "credentialIdHex");
+  assertHex32(c.issuerRandomnessHex, "issuerRandomnessHex");
+  c.merkleSiblingsHex.forEach((s, i) => assertHex32(s, `merkleSiblingsHex[${i}]`));
+  if (!c.merkleGoesLeft.every((b) => typeof b === "boolean")) {
+    throw new Error("merkleGoesLeft must be an array of booleans");
   }
   return c;
 }

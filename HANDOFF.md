@@ -8,35 +8,32 @@ Audit drop (for Codex): `_codex-audit/midnight-xrpl-gateway.bundle` + the `mxg-a
 
 ---
 
-**Codex — re-review the midnight-xrpl-gateway productization (gateway service + dApp), at the bundle's current HEAD** (latest code = `4cf525c`; doc-only commits after don't change the review surface).
+**Codex — debugging help (NOT an audit): the dApp prove step drops `Vector<16,Bytes<32>>` witness elements in the browser.** Full writeup in **`docs/HANDOFF_PROVE_BLOCKER_CODEX.md`**.
 
-Audit drop refreshed: `_codex-audit\midnight-xrpl-gateway.bundle` + `mxg-audit\` checkout + `origin/master`.
-Full details in **`docs/HANDOFF_PRODUCTIZATION_CODEX.md`**.
+Context: contract is deployed live on Preprod (`3d44f5ec…`), gateway-service is wired + validated, browser
+connect + deploy work. The prove step is the last keystone and it fails.
 
-**Scope:** new code since the Phase-6 audit (`62647e6`). The audited `packages/*` / `contracts/*` / gateway
-pipeline are unchanged.
+**Symptom:** `proveEligibility` errors in *local* circuit execution — *"merkleSiblings … expected Vector<16,
+Bytes<32>> but received [11 elements]"* (original indices 8–12 dropped).
 
-**Prior blockers — all resolved:**
-1. *gateway-service typecheck gap* → added `tsconfig.json` + `typecheck` script; fixed the
-   `receipt-provider.ts` indexer→`ledgerOf` cast. Clean.
-2. *dApp build (Unix `cp`)* → portable `scripts/copy-assets.mjs`.
-3. *dApp build assets not produced on Windows* → root cause is the Compact proving backend being WSL/Linux-only
-   (same as compile/prove/e2e). Fixed via explicit prerequisite: `copy-assets.mjs` fails with actionable
-   guidance; new `apps/dapp/README.md` documents `compile → build`. **Verified end-to-end in WSL** (compile →
-   vite WASM build → `dist/{keys,zkir}`). Not committing the 37 MB key.
-- Cleanups: `.env.example` now committed; 413 on body-cap; tsbuildinfo ignored.
+**Isolated (please sanity-check):** the data is 16 correct `Uint8Array(32)` in Node
+(`apps/dapp/scripts/repro-credential.ts`); two different private-state providers give the same 11 (not the
+provider); the error is pre-prover (not 1AM's hosted prover); the Node E2E proves this exact contract+witness
+fine. ⇒ working theory = the **browser-bundled `onchain-runtime-v3` WASM mis-marshals the Vector array** under
+Vite.
 
-**Please verify:**
-- **`apps/gateway-service` (HIGH):** no seed/blob leakage; untrusted body → pipeline re-validates; pre-auth IP
-  limiter + `trustProxy` default-false; error→status mapping leaks nothing; mainnet guard at startup.
-- **`apps/dapp` (MEDIUM, architecture):** soundness of the bboard-adapted connection layer + the flagged
-  `FetchZkConfigProvider` vs `withCompiledFileAssets` seam.
+**Prime suspect:** `apps/dapp/vite.config.ts` `onchain-runtime-v3` handling (manualChunks `wasm` + the custom
+`wasm-module-resolver` plugin + `optimizeDeps.exclude`) — copied from bboard, which only ever used a single
+`Bytes<32>` private-state field. Also check for duplicate/mismatched `compact-runtime`/`onchain-runtime-v3`
+copies in the bundle, and how example-kitties handles a Vector witness in-browser (if it does).
 
-**Verify:** `npm ci && node --test` → 81 pass; `npm run typecheck -w @mxrpl/gateway-service` / `-w @mxrpl/dapp`
-clean. (`node_modules` has Linux-native addons — `npm ci` on your platform.) No merge/deploy before your audit.
+**Engage with:** `npm ci`, then `npx tsx scripts/repro-credential.ts` (in `apps/dapp`) + read
+`vite.config.ts` / `gateway-api.ts` / `lib/credential.ts` / `witnesses.ts:51`. Earlier productization review
+(gateway-service + dApp) is in `docs/HANDOFF_PRODUCTIZATION_CODEX.md` if needed.
 
 ---
 
 ### History (detail docs)
 - `docs/HANDOFF_PHASE{0,2,3,4,5,6}_CODEX.md` — per-phase handoffs (all green).
-- `docs/HANDOFF_PRODUCTIZATION_CODEX.md` — gateway service + dApp foundation (current).
+- `docs/HANDOFF_PRODUCTIZATION_CODEX.md` — gateway service + dApp foundation (green).
+- `docs/HANDOFF_PROVE_BLOCKER_CODEX.md` — the browser Vector-witness drop (CURRENT ask).

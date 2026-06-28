@@ -51,8 +51,11 @@ export type DeployedGateway = Awaited<ReturnType<typeof joinGateway>>;
 export async function proveEligibility(
   providers: GatewayProviders,
   deployed: DeployedGateway,
+  contractAddress: string,
   witnessInputs: Parameters<typeof createGatewayPrivateState>[0],
 ) {
+  // the scoped in-memory provider keys private state by contract address — set it before writing.
+  providers.privateStateProvider.setContractAddress(contractAddress);
   await providers.privateStateProvider.set(GatewayPrivateStateId, createGatewayPrivateState(witnessInputs));
   return deployed.callTx.proveEligibility();
 }

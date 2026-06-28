@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { connectMidnight, listWallets, type MidnightConnection, type WalletInfo } from "./midnight/providers.ts";
-import { deployGateway } from "./midnight/gateway-api.ts";
+import { deployGateway, joinGateway, proveEligibility } from "./midnight/gateway-api.ts";
 import { createDemoPolicy, type DemoPolicy } from "./lib/demo-policy.ts";
+import { parseCredential, buildProveRequest } from "./lib/credential.ts";
 import { gatewayHealthy } from "./lib/gateway-client.ts";
 
 const NETWORK_ID = import.meta.env.VITE_NETWORK_ID ?? "undeployed";
 const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL ?? "http://localhost:8787";
+const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS ?? "";
 const PROVER_OVERRIDE = import.meta.env.VITE_PROVER_URI; // optional: force a local proof server
 const IS_ADMIN = new URLSearchParams(window.location.search).has("admin"); // ?admin → one-time deploy UI
 
@@ -24,6 +26,11 @@ export function App() {
   const [deploying, setDeploying] = useState(false);
   const [deployed, setDeployed] = useState<{ address: string; policy: DemoPolicy } | null>(null);
   const [deployError, setDeployError] = useState<string | null>(null);
+  const [credentialJson, setCredentialJson] = useState("");
+  const [xrplAddress, setXrplAddress] = useState("");
+  const [proving, setProving] = useState(false);
+  const [proveResult, setProveResult] = useState<{ requestCommitment: string; block?: number } | null>(null);
+  const [proveError, setProveError] = useState<string | null>(null);
 
   useEffect(() => {
     void gatewayHealthy(GATEWAY_URL).then(setGatewayUp);
@@ -67,6 +74,24 @@ export function App() {
       setDeployError(e instanceof Error ? e.message : String(e));
     } finally {
       setDeploying(false);
+    }
+  }
+
+  async function prove(): Promise<void> {
+    if (!connection || !CONTRACT_ADDRESS) return;
+    setProving(true);
+    setProveError(null);
+    setProveResult(null);
+    try {
+      const cred = parseCredential(credentialJson);
+      const req = buildProveRequest(cred, xrplAddress.trim());
+      const deployed = await joinGateway(connection.providers, CONTRACT_ADDRESS);
+      const res = await proveEligibility(connection.providers, deployed, CONTRACT_ADDRESS, req.witnessInputs);
+      setProveResult({ requestCommitment: req.requestCommitmentHex, block: (res as { public?: { blockHeight?: number } }).public?.blockHeight });
+    } catch (e) {
+      setProveError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setProving(false);
     }
   }
 
@@ -127,6 +152,40 @@ export function App() {
               </p>
             )}
           </>
+        )}
+
+        {status === "connected" && CONTRACT_ADDRESS && (
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #eee" }}>
+            <p style={{ margin: "0 0 6px", fontWeight: 600 }}>Prove eligibility</p>
+            <p style={{ margin: "0 0 8px", fontSize: 12, color: "#666" }}>
+              Contract <code>{CONTRACT_ADDRESS.slice(0, 12)}…</code>. Paste your credential + the XRPL account to bind, then prove (a real ZK proof, in-wallet).
+            </p>
+            <textarea
+              placeholder="credential JSON (the `credential` object from your deploy)"
+              value={credentialJson}
+              onChange={(e) => setCredentialJson(e.target.value)}
+              style={{ width: "100%", height: 90, fontSize: 11, fontFamily: "monospace", boxSizing: "border-box" }}
+            />
+            <input
+              placeholder="your XRPL account (r…)"
+              value={xrplAddress}
+              onChange={(e) => setXrplAddress(e.target.value)}
+              style={{ width: "100%", marginTop: 6, padding: 6, boxSizing: "border-box" }}
+            />
+            <button onClick={prove} disabled={proving || !credentialJson || !xrplAddress} style={{ marginTop: 8, padding: "8px 14px", borderRadius: 8, cursor: "pointer" }}>
+              {proving ? "Proving… (~20s, hosted prover)" : "Prove eligibility"}
+            </button>
+            {proveResult && (
+              <p style={{ marginTop: 10, fontSize: 12, color: "#1a7f37" }}>
+                ✅ Eligibility proven{proveResult.block ? ` @ block ${proveResult.block}` : ""}. Request commitment:
+                <br />
+                <code style={{ wordBreak: "break-all" }}>{proveResult.requestCommitment}</code>
+                <br />
+                The gateway service can now issue your credential for this request.
+              </p>
+            )}
+            {proveError && <p style={{ marginTop: 8, color: "#c0392b", fontSize: 12 }}>⚠ {proveError}</p>}
+          </div>
         )}
 
         {IS_ADMIN && status === "connected" && (

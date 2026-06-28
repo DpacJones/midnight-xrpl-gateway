@@ -36,3 +36,15 @@ export async function gatewayHealthy(serviceUrl: string): Promise<boolean> {
     return false;
   }
 }
+
+export interface GatewayInfo {
+  ok: boolean;
+  contract: string;
+  issuer: string; // the XRPL issuer account — needed for CredentialAccept + the gated payment
+}
+
+export async function getGatewayInfo(serviceUrl: string): Promise<GatewayInfo> {
+  const res = await fetch(`${serviceUrl.replace(/\/$/, "")}/health`);
+  if (!res.ok) throw new Error(`gateway /health ${res.status}`);
+  return (await res.json()) as GatewayInfo;
+}

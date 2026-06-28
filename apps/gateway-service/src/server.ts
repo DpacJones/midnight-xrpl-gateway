@@ -39,9 +39,15 @@ const ipLimiter = new FixedWindowRateLimiter(cfg.ipRate.maxPerWindow, cfg.ipRate
 const MAX_BODY = 16 * 1024; // issuance requests are tiny; cap to avoid memory abuse
 const STATUS_BY_CODE: Record<string, number> = { "rate-limited": 429, "receipt:missing": 403 };
 
+const CORS_ORIGIN = process.env.MXRPL_CORS_ORIGIN ?? "*"; // allow the dApp origin (demo default: any)
+
 function send(res: ServerResponse, code: number, body: unknown): void {
   const s = JSON.stringify(body);
-  res.writeHead(code, { "content-type": "application/json", "content-length": Buffer.byteLength(s) });
+  res.writeHead(code, {
+    "content-type": "application/json",
+    "content-length": Buffer.byteLength(s),
+    "access-control-allow-origin": CORS_ORIGIN,
+  });
   res.end(s);
 }
 
@@ -78,6 +84,16 @@ function statusFor(e: GatewayError): number {
 }
 
 const server = createServer(async (req, res) => {
+  if (req.method === "OPTIONS") {
+    // CORS preflight for the browser dApp's POST /issue-credential
+    res.writeHead(204, {
+      "access-control-allow-origin": CORS_ORIGIN,
+      "access-control-allow-methods": "POST, GET, OPTIONS",
+      "access-control-allow-headers": "content-type",
+    });
+    res.end();
+    return;
+  }
   try {
     if (req.method === "GET" && req.url === "/health") {
       send(res, 200, { ok: true, contract: cfg.gateway.midnight.contractAddress, issuer: cfg.gateway.xrpl.credentialIssuer });

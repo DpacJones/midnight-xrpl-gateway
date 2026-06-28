@@ -10,16 +10,20 @@ Audit drop (for Codex): `_codex-audit/midnight-xrpl-gateway.bundle` + the `mxg-a
 
 **XRPL-flow review COMPLETE — Codex green (no high-severity).** The browser flow matches the audited Node E2E
 (`apps/e2e-harness/run-e2e.ts`). Three findings, **all addressed** (latest commit):
-- **Medium** — `apps/dapp/src/midnight/providers.ts`: the IndexedDB private-state at-rest key now derives from a
-  **per-session random secret**, not the public coin key.
+- **Medium** (`apps/dapp/src/midnight/providers.ts`) — **re-evaluated + ACCEPTED, not code-fixed.** A first
+  attempt (per-session random at-rest key) **broke the dApp**: the level provider persists + reuses a signing
+  key, so a changing password fails to decrypt it (`OperationError` in `setOrGetInitialSigningKey` →
+  `findDeployedContract`) — confirmed live. The key **must be stable**, so it stays keyed off the (public) coin
+  key. Documented as an accepted **testnet/synthetic-demo** limitation in `docs/KNOWN_LIMITATIONS.md §5b`;
+  production needs a real user-secret-derived (or per-session wallet-signature) key.
 - **Low** — `apps/dapp/src/lib/credential.ts`: `parseCredential` hardened — `Array.isArray(merkleGoesLeft)` +
-  **exact 32-byte-hex** validation of all byte fields (rejects malformed shapes at the boundary).
-- **Low** — `apps/gateway-service/src/server.ts`: startup **warning when `MXRPL_CORS_ORIGIN=*`** (already pinnable
-  via env; `*` is accepted for the testnet demo).
+  **exact 32-byte-hex** validation of all byte fields (rejects malformed shapes at the boundary). ✅ fixed.
+- **Low** — `apps/gateway-service/src/server.ts`: startup **warning when `MXRPL_CORS_ORIGIN=*`**. ✅ fixed.
 
-Detail: `docs/HANDOFF_XRPL_FLOW_CODEX.md`. **No open ask.** Re-verify: `npm ci && node --test` → 81 pass;
-`npm run typecheck -w @mxrpl/dapp` / `-w @mxrpl/gateway-service` clean. Testnet/synthetic only. (Known non-security
-UX gap: the dApp is brittle on a dropped/dismissed 1AM popup — flagged for a later resilience pass.)
+**Re-verified live after the revert** (Lace + 1AM both work): prove reaches the circuit and executes
+`proveEligibility` correctly — no `OperationError`. Detail: `docs/HANDOFF_XRPL_FLOW_CODEX.md`. **No open ask.**
+Re-verify: `npm ci && node --test` → 81 pass; typechecks clean. Testnet/synthetic only. (Known non-security UX
+gap: the dApp is brittle on a dropped/dismissed wallet popup — flagged for a later resilience pass.)
 
 ---
 

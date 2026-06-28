@@ -14,6 +14,12 @@ all stated so the trust assumptions are explicit (the project's honesty posture)
    process; v1 keeps it in a local `.env`. Production needs real key custody (HSM / KMS).
 5. **Root rotation is issuer/admin controlled.** Revocation works by rotating the published root +
    bumping the epoch; this depends on the admin behaving correctly.
+5b. **dApp at-rest key (browser, testnet).** The browser dApp encrypts its IndexedDB private state
+   (prove-only witness inputs) under a key derived from the wallet's *public* coin key — so it is not
+   meaningfully protected from a local attacker with browser-storage access. The key must stay **stable**:
+   the level provider persists + reuses a signing key, so a per-session random key fails to decrypt it
+   (`OperationError`). Production should derive the key from a genuine user secret (PIN/passphrase) or a
+   per-session wallet signature. (Codex Medium finding — accepted for synthetic-testnet use.)
 
 ## Privacy
 6. **The XRPL account and credential type are public**, as is the *fact* of authorization for that

@@ -1,5 +1,7 @@
 # Midnight × XRPL — Private Credential Gateway
 
+[![CI](https://github.com/DpacJones/midnight-xrpl-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/DpacJones/midnight-xrpl-gateway/actions/workflows/ci.yml)
+
 **Prove a private eligibility policy on Midnight; let XRPL natively enforce the resulting credential.**
 
 A user proves — in zero knowledge, on [Midnight](https://midnight.network) — that they satisfy a

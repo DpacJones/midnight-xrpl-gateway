@@ -25,6 +25,11 @@ jobs:
   compile:
     name: Compile Compact contract
     runs-on: ubuntu-latest
+    env:
+      # The Compact CLI fetches the compiler list from the GitHub API; without a
+      # token, runners share a 60 req/hr unauthenticated limit and `compact update`
+      # fails with "API rate limit exceeded". The built-in token lifts it to 5000/hr.
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -118,6 +118,18 @@
   .progress { position: fixed; top: 0; left: 0; height: 3px; z-index: 3; width: 0;
     background: linear-gradient(90deg, var(--midnight), var(--xrpl)); box-shadow: 0 0 12px var(--midnight); transition: width .3s; }
   .hint { position: absolute; z-index:2; bottom: 2.3vh; left: 50%; transform: translateX(-50%); color: rgba(150,150,190,.4); font-size: .78rem; }
+  @media (max-width: 768px) {
+    .slide { padding: 4.5vh 6vw; justify-content: flex-start; overflow-y: auto; }
+    .cards { grid-template-columns: 1fr; gap: 1rem; }
+    .two { grid-template-columns: 1fr; }
+    .split2 { grid-template-columns: 1fr !important; }
+    .pills { gap: .5rem; }
+    table { font-size: 1rem; }
+    th, td { padding: .7rem .8rem; }
+    .dots { display: none; }
+    footer { font-size: .7rem; }
+    h1 { margin-top: 1vh; }
+  }
   @media print { .slide { display:flex !important; opacity:1 !important; transform:none !important; position:relative; page-break-after:always; height:100vh; } footer,.hint,.progress{display:none;} body{overflow:visible;} }
 </style>
 </head>
@@ -273,7 +285,7 @@
   <section class="slide">
     <div class="kicker">Verified live — browser, real chains</div>
     <h2>The ledger enforces it</h2>
-    <div style="display:grid;grid-template-columns:1.05fr .95fr;gap:2rem;align-items:center;max-width:1000px">
+    <div class="split2" style="display:grid;grid-template-columns:1.05fr .95fr;gap:2rem;align-items:center;max-width:1000px">
       <div class="diagram" style="margin:0">
         <svg viewBox="0 0 420 280">
           <g font-family="system-ui" font-size="13" text-anchor="middle">

@@ -58,6 +58,27 @@ test("tampering with the root invalidates the bundle (path mismatch)", () => {
   assert.ok(res.reasons.some((r) => /does not resolve to credentialRoot/.test(r)));
 });
 
+test("a malformed bundle returns reasons instead of throwing", () => {
+  const { bundle } = issueOne();
+
+  // bad hex in a byte field must be reported, not thrown
+  const badHex = { ...bundle, credentialId: "zz".repeat(32) };
+  const r1 = verifyCredentialBundle(badHex);
+  assert.ok(!r1.ok);
+  assert.ok(r1.reasons.some((r) => /invalid credential fields/.test(r)));
+
+  // bad root hex must be reported, not thrown
+  const badRoot = { ...bundle, credentialRoot: "nothex" };
+  const r2 = verifyCredentialBundle(badRoot);
+  assert.ok(!r2.ok);
+  assert.ok(r2.reasons.some((r) => /invalid merkle path or root/.test(r)));
+
+  // invalid jurisdiction code (reached via credentialLeaf) must be reported, not thrown
+  const badJur = { ...bundle, jurisdictionCode: "ca" };
+  const r3 = verifyCredentialBundle(badJur);
+  assert.ok(!r3.ok);
+});
+
 test("two credentials in the same tree each verify against the final root", () => {
   const tree = new CredentialMerkleTree();
   const a = issueOne({ tree });

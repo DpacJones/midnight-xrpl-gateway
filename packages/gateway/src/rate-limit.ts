@@ -18,6 +18,9 @@ export class FixedWindowRateLimiter implements RateLimiter {
 
   constructor(maxPerWindow = 20, windowMs = 60_000) {
     if (maxPerWindow < 1) throw new Error("maxPerWindow must be >= 1");
+    // A non-positive window makes `now - windowStart >= windowMs` always true, resetting the bucket
+    // every call so the limiter never blocks — a silent fail-open. Reject it at construction.
+    if (!(windowMs >= 1)) throw new Error("windowMs must be >= 1");
     this.maxPerWindow = maxPerWindow;
     this.windowMs = windowMs;
   }

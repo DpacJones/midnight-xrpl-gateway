@@ -92,16 +92,33 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
     });
     if (!v.ok) throw new GatewayError("challenge:invalid", `challenge verification failed: ${v.reasons.join("; ")}`);
 
-    // 4b. rate limit per subject — POST-AUTH. The challenge above cryptographically proved the caller
-    //     controls req.xrplAccount, so a caller cannot burn another subject's bucket (no spoofed-subject
-    //     DoS). Sheds load before the indexer query + XRPL submit. Default 20 / 60 s; in-process.
-    //     NOTE: this is NOT a complete abuse defense — a deployment should ALSO rate-limit pre-auth at
-    //     the transport layer (by caller IP / API key), since challenge verification runs before this.
-    if (!rateLimiter.tryAcquire(req.xrplAccount)) throw new GatewayError("rate-limited", "too many issuance requests for this account");
-
-    // 5-6. recompute the request commitment from the AccountID + nonce + policy + epoch, require equality
+    // 5-6. recompute the request commitment from the AccountID + nonce + policy + epoch, require
+    //      equality. This binds req.requestCommitment to the authenticated account, so it MUST run
+    //      before anything looks up by that commitment (idempotency + receipt) below.
     const rc = toHex(recomputeCommitment({ xrplAccountId32: accountId32, requestNonce: fromHex(req.requestNonce), policyEpoch: req.policyEpoch, policyId32: fromHex(req.policyId) }));
     if (rc !== req.requestCommitment.toLowerCase()) throw new GatewayError("commitment:mismatch", "recomputed request commitment != request");
+
+    const key = idempotencyKey(config.xrpl.network, req.policyId, req.requestCommitment);
+
+    // Idempotency FAST-PATH: an already-completed request replays to its stored record WITHOUT
+    // consuming a rate-limit token or querying the indexer. A legitimate retry (page reload, network
+    // flakiness, double-submit) must never be turned into a 429. The commitment recompute above
+    // already bound this commitment to the caller's account, so this cannot return another subject's
+    // record. The authoritative check still runs inside the critical section below.
+    const persisted = await deps.store.get(key);
+    if (persisted) {
+      const idempotent = { ...persisted, status: "idempotent" as const };
+      safeLog("issuance.result", { ...safeRequestFields(req), status: idempotent.status, credentialId: idempotent.credentialId, createHash: idempotent.createHash });
+      return idempotent;
+    }
+
+    // 4b. rate limit per subject — POST-AUTH, and only for requests NOT already satisfied above. The
+    //     challenge earlier cryptographically proved the caller controls req.xrplAccount, so a caller
+    //     cannot burn another subject's bucket (no spoofed-subject DoS). Sheds load before the indexer
+    //     query + XRPL submit. Default 20 / 60 s; in-process. NOTE: this is NOT a complete abuse
+    //     defense — a deployment should ALSO rate-limit pre-auth at the transport layer (by caller IP /
+    //     API key), since challenge verification runs before this.
+    if (!rateLimiter.tryAcquire(req.xrplAccount)) throw new GatewayError("rate-limited", "too many issuance requests for this account");
 
     // 7-9. confirmed Midnight eligibility receipt in the configured contract's validated state
     const approved = await deps.midnight.isApprovedRequest({
@@ -113,7 +130,6 @@ export function createGateway(rawConfig: GatewayConfig, deps: GatewayDeps): Gate
 
     // 10-16. critical section per idempotency key — the check-and-issue runs atomically so two
     //        concurrent duplicate requests cannot both issue.
-    const key = idempotencyKey(config.xrpl.network, req.policyId, req.requestCommitment);
     const result = await withKeyLock(key, async () => {
       // 10. durable idempotency
       const existing = await deps.store.get(key);

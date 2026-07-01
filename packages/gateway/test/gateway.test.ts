@@ -8,6 +8,7 @@ import {
   buildCredentialCreate,
   assertSafeConfig,
   InMemoryIdempotencyStore,
+  FixedWindowRateLimiter,
   GatewayError,
   type GatewayConfig,
   type CredentialIssueRequest,
@@ -187,6 +188,33 @@ test("rate limit sheds over-limit issuance before any expensive work", async () 
   const g = createGateway(config(), { midnight: mockMidnight(new Set([commitmentHex])), issuer: issuer.issuer, store: new InMemoryIdempotencyStore(), rateLimiter: { tryAcquire: () => false } });
   await assert.rejects(() => g.issueCredential(req), (e) => e instanceof GatewayError && e.code === "rate-limited");
   assert.equal(issuer.calls.issue, 0);
+});
+
+test("an already-issued request replays idempotently even when the subject is rate-limited", async () => {
+  // The idempotency fast-path runs BEFORE the rate limiter, so a legitimate retry of a completed
+  // request returns the stored record instead of a spurious 429.
+  const { req, commitmentHex } = validRequest();
+  const store = new InMemoryIdempotencyStore();
+  const issuer = mockIssuer();
+  // 1) issue normally (limiter allows)
+  const g1 = createGateway(config(), { midnight: mockMidnight(new Set([commitmentHex])), issuer: issuer.issuer, store });
+  const a = await g1.issueCredential(req);
+  assert.equal(a.status, "issued");
+  // 2) same request, now with a limiter that rejects everything — must STILL return the stored record
+  const g2 = createGateway(config(), { midnight: mockMidnight(new Set([commitmentHex])), issuer: issuer.issuer, store, rateLimiter: { tryAcquire: () => false } });
+  const b = await g2.issueCredential(req);
+  assert.equal(b.status, "idempotent");
+  assert.equal(b.credentialId, "CREDID");
+  assert.equal(issuer.calls.issue, 1); // never re-issued
+});
+
+test("FixedWindowRateLimiter rejects a non-positive window (no silent fail-open)", () => {
+  assert.throws(() => new FixedWindowRateLimiter(20, 0), /windowMs must be >= 1/);
+  assert.throws(() => new FixedWindowRateLimiter(20, -1), /windowMs must be >= 1/);
+  // a valid window still constructs and limits
+  const rl = new FixedWindowRateLimiter(1, 60_000);
+  assert.equal(rl.tryAcquire("subject"), true);
+  assert.equal(rl.tryAcquire("subject"), false); // second call in the window is shed
 });
 
 test("logging is structured and redacts the blob + nonce", async () => {

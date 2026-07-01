@@ -1,6 +1,7 @@
 // Typed client for the gateway HTTP service (POST /issue-credential). The dApp calls this AFTER the
 // on-chain proof lands + the user signs the XRPL challenge.
 import type { CredentialIssueRequest, IssueRecord } from "@mxrpl/gateway";
+import { TIMEOUTS } from "./timeout.ts";
 
 export class GatewayServiceError extends Error {
   readonly status: number;
@@ -19,6 +20,7 @@ export async function requestCredential(serviceUrl: string, request: CredentialI
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(request),
+    signal: AbortSignal.timeout(TIMEOUTS.gatewayFetch), // don't hang the flow on an unresponsive gateway
   });
   const body: unknown = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -30,7 +32,7 @@ export async function requestCredential(serviceUrl: string, request: CredentialI
 
 export async function gatewayHealthy(serviceUrl: string): Promise<boolean> {
   try {
-    const res = await fetch(`${serviceUrl.replace(/\/$/, "")}/health`);
+    const res = await fetch(`${serviceUrl.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(TIMEOUTS.gatewayFetch) });
     return res.ok;
   } catch {
     return false;
@@ -44,7 +46,9 @@ export interface GatewayInfo {
 }
 
 export async function getGatewayInfo(serviceUrl: string): Promise<GatewayInfo> {
-  const res = await fetch(`${serviceUrl.replace(/\/$/, "")}/health`);
+  const res = await fetch(`${serviceUrl.replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(TIMEOUTS.gatewayFetch) });
   if (!res.ok) throw new Error(`gateway /health ${res.status}`);
-  return (await res.json()) as GatewayInfo;
+  const body: unknown = await res.json().catch(() => null);
+  if (!body || typeof body !== "object") throw new Error("gateway /health returned a non-JSON response");
+  return body as GatewayInfo;
 }

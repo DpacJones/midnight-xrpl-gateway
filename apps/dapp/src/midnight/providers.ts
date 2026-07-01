@@ -22,6 +22,7 @@ import type { UnboundTransaction } from "@midnight-ntwrk/midnight-js-types";
 import semver from "semver";
 import { levelPrivateStateProvider } from "@midnight-ntwrk/midnight-js-level-private-state-provider";
 import { zkConfigPath, type GatewayCircuitKeys, type GatewayProviders, GatewayPrivateStateId } from "./contract.ts";
+import { withTimeout, TIMEOUTS } from "../lib/timeout.ts";
 
 const COMPATIBLE_CONNECTOR_API_VERSION = "4.x"; // 1AM ships DApp Connector v4 (window.midnight typed by the connector pkg)
 
@@ -59,7 +60,9 @@ async function connectToWallet(networkId: string, walletKey?: string): Promise<C
   const start = performance.now();
   for (;;) {
     const initial = pick();
-    if (initial) return initial.connect(networkId);
+    // Bound the connect: opening the wallet popup can hang forever if the user dismisses or ignores
+    // it. Without this, `status` stays "connecting" and every button stays disabled with no recovery.
+    if (initial) return withTimeout(initial.connect(networkId), TIMEOUTS.walletConnect, "Wallet connection");
     if (performance.now() - start > deadline) {
       throw new Error(`No compatible Midnight wallet found${walletKey ? ` for "${walletKey}"` : ""}. Is 1AM or Lace installed + enabled?`);
     }
@@ -82,10 +85,17 @@ export interface MidnightConnection {
 export async function connectMidnight(networkId: string, walletKey?: string, proverOverride?: string): Promise<MidnightConnection> {
   setNetworkId(networkId as never); // MUST run before any wallet/contract op (matches the Node harness)
   const connectedAPI = await connectToWallet(networkId, walletKey);
-  const config = await connectedAPI.getConfiguration();
-  const shieldedAddresses = await connectedAPI.getShieldedAddresses();
+  // These reads are quick once the wallet is connected, but a wedged wallet can still hang them —
+  // bound both so a stuck read surfaces as an error instead of a frozen "connecting" state.
+  const config = await withTimeout(connectedAPI.getConfiguration(), TIMEOUTS.walletOp, "Reading wallet configuration");
+  const shieldedAddresses = await withTimeout(connectedAPI.getShieldedAddresses(), TIMEOUTS.walletOp, "Reading wallet addresses");
   const keyMaterialProvider = new FetchZkConfigProvider<GatewayCircuitKeys>(zkConfigPath, fetch.bind(window));
-  const proverUri = proverOverride ?? config.proverServerUri!;
+  // The wallet may not report a prover URI (and no local override was set). Fail with a clear message
+  // instead of a non-null assertion that would mislabel the prover and then fail cryptically at prove time.
+  const proverUri = proverOverride ?? config.proverServerUri;
+  if (!proverUri) {
+    throw new Error("The connected wallet did not report a prover server URI. Set VITE_PROVER_URI (e.g. http://localhost:6300) to use a local proof server.");
+  }
 
   const providers: GatewayProviders = {
     // level provider (IndexedDB in the browser) — its codec produces the runtime-correct shape for

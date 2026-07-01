@@ -4,6 +4,7 @@
 import { Client, Wallet } from "xrpl";
 import { buildChallenge } from "@mxrpl/xrpl-client";
 import { POLICY_ID32, fromHex } from "@mxrpl/private-credential-core";
+import { withTimeout, TIMEOUTS } from "./timeout.ts";
 
 const TESTNET = "wss://s.altnet.rippletest.net:51233";
 
@@ -13,12 +14,19 @@ export interface TxResult {
 }
 
 async function withClient<T>(fn: (c: Client) => Promise<T>): Promise<T> {
-  const c = new Client(TESTNET);
-  await c.connect();
+  const c = new Client(TESTNET, { connectionTimeout: TIMEOUTS.xrplConnect });
   try {
+    // If the testnet WebSocket is unreachable, connect() can hang; bound it so callers get an error
+    // instead of a spinner that never resolves (e.g. the "Funding…" button stuck forever).
+    await withTimeout(c.connect(), TIMEOUTS.xrplConnect, "XRPL testnet connection");
     return await fn(c);
   } finally {
-    if (c.isConnected()) await c.disconnect();
+    // Always attempt to close — covers the timed-out/half-open case too. Ignore if never connected.
+    try {
+      await c.disconnect();
+    } catch {
+      /* nothing to close */
+    }
   }
 }
 

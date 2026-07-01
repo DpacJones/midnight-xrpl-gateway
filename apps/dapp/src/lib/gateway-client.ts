@@ -1,6 +1,7 @@
 // Typed client for the gateway HTTP service (POST /issue-credential). The dApp calls this AFTER the
 // on-chain proof lands + the user signs the XRPL challenge.
 import type { CredentialIssueRequest, IssueRecord } from "@mxrpl/gateway";
+import { TIMEOUTS, TimeoutError } from "./timeout.ts";
 
 export class GatewayServiceError extends Error {
   readonly status: number;
@@ -13,9 +14,25 @@ export class GatewayServiceError extends Error {
   }
 }
 
+/**
+ * fetch bounded by `TIMEOUTS.gatewayFetch`. `AbortSignal.timeout` rejects with a DOMException whose
+ * message is generic/empty; since the UI surfaces `error.message`, we map that abort to a labeled
+ * TimeoutError so a gateway timeout reads the same as the wallet/XRPL ones (from withTimeout).
+ */
+async function gatewayFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUTS.gatewayFetch) });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "TimeoutError") {
+      throw new TimeoutError(`Gateway request did not complete within ${TIMEOUTS.gatewayFetch / 1000}s`);
+    }
+    throw e;
+  }
+}
+
 /** Request issuance of one XRPL credential from the gateway service. */
 export async function requestCredential(serviceUrl: string, request: CredentialIssueRequest): Promise<IssueRecord> {
-  const res = await fetch(`${serviceUrl.replace(/\/$/, "")}/issue-credential`, {
+  const res = await gatewayFetch(`${serviceUrl.replace(/\/$/, "")}/issue-credential`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(request),
@@ -30,7 +47,7 @@ export async function requestCredential(serviceUrl: string, request: CredentialI
 
 export async function gatewayHealthy(serviceUrl: string): Promise<boolean> {
   try {
-    const res = await fetch(`${serviceUrl.replace(/\/$/, "")}/health`);
+    const res = await gatewayFetch(`${serviceUrl.replace(/\/$/, "")}/health`);
     return res.ok;
   } catch {
     return false;
@@ -44,7 +61,9 @@ export interface GatewayInfo {
 }
 
 export async function getGatewayInfo(serviceUrl: string): Promise<GatewayInfo> {
-  const res = await fetch(`${serviceUrl.replace(/\/$/, "")}/health`);
+  const res = await gatewayFetch(`${serviceUrl.replace(/\/$/, "")}/health`);
   if (!res.ok) throw new Error(`gateway /health ${res.status}`);
-  return (await res.json()) as GatewayInfo;
+  const body: unknown = await res.json().catch(() => null);
+  if (!body || typeof body !== "object") throw new Error("gateway /health returned a non-JSON response");
+  return body as GatewayInfo;
 }

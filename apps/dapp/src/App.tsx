@@ -6,6 +6,7 @@ import { createDemoPolicy, type DemoPolicy } from "./lib/demo-policy.ts";
 import { parseCredential, buildProveRequest } from "./lib/credential.ts";
 import { gatewayHealthy, getGatewayInfo, requestCredential } from "./lib/gateway-client.ts";
 import { createFundedWallet, signChallenge, acceptCredential, gatedPaymentDemo } from "./lib/xrpl-flow.ts";
+import { withTimeout, TIMEOUTS } from "./lib/timeout.ts";
 import { POLICY_ID32, toHex } from "@mxrpl/private-credential-core";
 
 const NETWORK_ID = import.meta.env.VITE_NETWORK_ID ?? "undeployed";
@@ -103,11 +104,18 @@ export function App() {
     setProveError(null);
     setProveResult(null);
     setFlowResult(null);
+    setFlowError(null); // a new proof starts a fresh flow — don't let a prior flow error linger
     try {
       const cred = parseCredential(credentialJson);
       const req = buildProveRequest(cred, ephemeral.classicAddress);
-      const dc = await joinGateway(connection.providers, CONTRACT_ADDRESS);
-      const res = await proveEligibility(connection.providers, dc, CONTRACT_ADDRESS, req.witnessInputs);
+      const dc = await withTimeout(joinGateway(connection.providers, CONTRACT_ADDRESS), TIMEOUTS.walletOp, "Loading the contract");
+      // Bound proving so a hung prover / dismissed wallet popup can't leave the button stuck on
+      // "Proving…". The timeout is generous; a normal proof (~20s) finishes well within it.
+      const res = await withTimeout(
+        proveEligibility(connection.providers, dc, CONTRACT_ADDRESS, req.witnessInputs),
+        TIMEOUTS.prove,
+        "Proof generation",
+      );
       setProveResult({
         requestCommitment: req.requestCommitmentHex,
         requestNonce: req.requestNonceHex,
@@ -232,7 +240,16 @@ export function App() {
             <textarea
               placeholder="credential JSON (the `credential` object from your deploy)"
               value={credentialJson}
-              onChange={(e) => setCredentialJson(e.target.value)}
+              onChange={(e) => {
+                setCredentialJson(e.target.value);
+                // Editing the credential invalidates any prior proof + downstream XRPL flow, whose
+                // commitment/nonce were derived from the OLD text. Clear them so the next step can't
+                // run against stale data.
+                setProveResult(null);
+                setProveError(null);
+                setFlowResult(null);
+                setFlowError(null);
+              }}
               style={{ width: "100%", height: 90, fontSize: 11, fontFamily: "monospace", boxSizing: "border-box" }}
             />
             <button onClick={prove} disabled={proving || !credentialJson || !ephemeral} style={{ marginTop: 8, padding: "8px 14px", borderRadius: 8, cursor: "pointer" }}>

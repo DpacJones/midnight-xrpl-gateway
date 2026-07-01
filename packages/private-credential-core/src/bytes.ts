@@ -11,11 +11,13 @@ export function toHex(bytes: Uint8Array): string {
 
 export function fromHex(hex: string): Uint8Array {
   if (hex.length % 2 !== 0) throw new Error(`hex string must have even length, got ${hex.length}`);
+  // Reject any non-hex character up front. Number.parseInt would otherwise silently accept a
+  // malformed pair (e.g. "1g" -> 0x01, "-5" -> a wrapped byte), corrupting the decoded value
+  // instead of failing. Every byte field here is security-relevant, so fail closed.
+  if (!/^[0-9a-fA-F]*$/.test(hex)) throw new Error("invalid hex: string contains a non-hex character");
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i++) {
-    const byte = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-    if (Number.isNaN(byte)) throw new Error(`invalid hex at byte ${i}`);
-    out[i] = byte;
+    out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   }
   return out;
 }

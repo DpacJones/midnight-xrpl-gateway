@@ -100,13 +100,29 @@ export function issueCredential(args: {
 /** Self-consistency check: leaf matches the fields, and the path resolves to the bundle root. */
 export function verifyCredentialBundle(b: CredentialBundle): { ok: boolean; reasons: string[] } {
   const reasons: string[] = [];
+  const why = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
   if (b.schemaVersion !== POLICY_V1.schemaVersion) reasons.push(`unexpected schema version ${b.schemaVersion}`);
-  const recomputedLeaf = toHex(credentialLeaf(privateCredentialFromBundle(b)));
-  if (recomputedLeaf !== b.leaf) reasons.push("leaf does not match credential fields");
-  const path = deserializeMerklePath(b.merklePath);
-  // External-bundle strictness: production paths must be exactly MERKLE_DEPTH deep (Codex audit).
-  if (path.entries.length !== MERKLE_DEPTH) reasons.push(`merkle path must have ${MERKLE_DEPTH} entries, got ${path.entries.length}`);
-  if (toHex(path.leaf) !== b.leaf) reasons.push("merkle path leaf != bundle leaf");
-  if (!verifyMerklePath(path, fromHex(b.credentialRoot))) reasons.push("merkle path does not resolve to credentialRoot");
+
+  // The bundle is untrusted external input. Malformed fields (bad hex, wrong length, invalid
+  // jurisdiction) must come back as a reason, not a thrown exception — this function promises a
+  // { ok, reasons } result so callers can validate without a try/catch.
+  try {
+    const recomputedLeaf = toHex(credentialLeaf(privateCredentialFromBundle(b)));
+    if (recomputedLeaf !== b.leaf) reasons.push("leaf does not match credential fields");
+  } catch (e) {
+    reasons.push(`invalid credential fields: ${why(e)}`);
+  }
+
+  try {
+    const path = deserializeMerklePath(b.merklePath);
+    // External-bundle strictness: production paths must be exactly MERKLE_DEPTH deep (Codex audit).
+    if (path.entries.length !== MERKLE_DEPTH) reasons.push(`merkle path must have ${MERKLE_DEPTH} entries, got ${path.entries.length}`);
+    if (toHex(path.leaf) !== b.leaf) reasons.push("merkle path leaf != bundle leaf");
+    if (!verifyMerklePath(path, fromHex(b.credentialRoot))) reasons.push("merkle path does not resolve to credentialRoot");
+  } catch (e) {
+    reasons.push(`invalid merkle path or root: ${why(e)}`);
+  }
+
   return { ok: reasons.length === 0, reasons };
 }

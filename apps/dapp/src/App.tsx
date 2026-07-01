@@ -104,6 +104,7 @@ export function App() {
     setProveError(null);
     setProveResult(null);
     setFlowResult(null);
+    setFlowError(null); // a new proof starts a fresh flow — don't let a prior flow error linger
     try {
       const cred = parseCredential(credentialJson);
       const req = buildProveRequest(cred, ephemeral.classicAddress);

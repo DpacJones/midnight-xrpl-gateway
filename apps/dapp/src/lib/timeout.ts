@@ -1,7 +1,10 @@
-// Bound any promise with a time limit. Every external call in the dApp (wallet popup, XRPL
-// WebSocket, gateway HTTP) goes through this so a call that never settles — a dismissed wallet
-// popup, a dropped connection, an unresponsive service — rejects instead of leaving the UI stuck
-// on a loading flag forever. Callers already handle rejection; this just guarantees one arrives.
+// Bound any promise with a time limit so a call that never settles — a dismissed wallet popup, a
+// dropped connection, an unresponsive service — rejects instead of leaving the UI stuck on a
+// loading flag forever. Callers already handle rejection; this just guarantees one arrives.
+//
+// Used for the wallet popup + XRPL WebSocket connects (which return plain promises). Gateway HTTP
+// calls instead pass `AbortSignal.timeout(TIMEOUTS.gatewayFetch)` to fetch (native, abortable) and
+// map the abort back to a TimeoutError — so every external boundary shares the same TIMEOUTS table.
 
 export class TimeoutError extends Error {
   constructor(message: string) {

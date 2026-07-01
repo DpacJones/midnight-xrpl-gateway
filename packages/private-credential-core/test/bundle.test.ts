@@ -73,10 +73,12 @@ test("a malformed bundle returns reasons instead of throwing", () => {
   assert.ok(!r2.ok);
   assert.ok(r2.reasons.some((r) => /invalid merkle path or root/.test(r)));
 
-  // invalid jurisdiction code (reached via credentialLeaf) must be reported, not thrown
+  // invalid jurisdiction code (reached via credentialLeaf) must be reported as a thrown-then-captured
+  // validation error, not merely surface as a leaf mismatch — assert the specific fail-soft reason.
   const badJur = { ...bundle, jurisdictionCode: "ca" };
   const r3 = verifyCredentialBundle(badJur);
   assert.ok(!r3.ok);
+  assert.ok(r3.reasons.some((r) => /invalid credential fields/.test(r)));
 });
 
 test("two credentials in the same tree each verify against the final root", () => {
